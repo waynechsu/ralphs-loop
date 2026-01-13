@@ -248,14 +248,18 @@ def inject_prompt(ws_url: str, prompt: str) -> bool:
         const logs = [];
         function log(msg) {{ logs.push(msg); }}
 
-        // Try multiple selector strategies
+        // Try multiple selector strategies - more specific first
         const selectors = [
-            'div[contenteditable="true"]',
-            '[contenteditable="true"]',
+            // Specific chat input selectors based on candidate scan
+            'div.bg-ide-input-background[contenteditable="true"]',
+            'div.cursor-text[contenteditable="true"]',
+            // Generic fallbacks
             'textarea[aria-label="Chat Input"]',
             '.chat-input textarea',
             '[data-testid="chat-input"]',
-            '.lexical-editor [contenteditable="true"]'
+            '.lexical-editor [contenteditable="true"]',
+            // Last resort
+            'div[contenteditable="true"]'
         ];
         
         let input = null;
@@ -319,51 +323,10 @@ def inject_prompt(ws_url: str, prompt: str) -> bool:
             return {{ success: false, error: 'Input not found', logs: logs }};
         }}
         
-        // For contenteditable (Lexical)
-        if (input.contentEditable === 'true') {{
-            input.focus();
-            
-            // Method 2: Direct text manipulation + Events (React friendly)
-            input.innerText = ''; 
-            const textToInsert = "{escaped_prompt}";
-            input.innerText = textToInsert;
-            
-            // Dispatch events to wake up React
-            const events = ['input', 'change', 'compositionstart', 'compositionend', 'keydown', 'keyup'];
-            events.forEach(evt => {{
-                input.dispatchEvent(new Event(evt, {{ bubbles: true }}));
-            }});
-            
-        }} else {{
-            // For textarea
-            input.focus();
-            input.value = "{escaped_prompt}";
-            input.dispatchEvent(new Event('input', {{ bubbles: true }}));
-            input.dispatchEvent(new Event('change', {{ bubbles: true }}));
-        }}
-        
-        // Find and click send button (search in same document where input was found)
-        const btnSelectors = [
-            'button[aria-label="Send Message"]',
-            'button[type="submit"]',
-            '.send-button',
-            '[data-testid="send-button"]'
-        ];
-        
-        for (const sel of btnSelectors) {{
-            // Search in the document where we found the input
-            const btn = inputDoc.querySelector(sel);
-            if (btn) {{
-                btn.click();
-                log("✅ Clicked button: " + sel);
-                return {{ success: true, logs: logs }};
-            }}
-        }}
-        
-        log("⚠️ No button found, using Enter key fallback");
-        // Try pressing Enter as fallback
-        input.dispatchEvent(new KeyboardEvent('keydown', {{ key: 'Enter', keyCode: 13, bubbles: true }}));
-        return {{ success: true, method: 'enter-key', logs: logs }};
+        // Just focus the input - text insertion will be done via CDP Input.insertText
+        input.focus();
+        log("✅ Input focused: " + (input.tagName || "unknown"));
+        return {{ success: true, logs: logs }};
     }})();
     """
     
@@ -371,19 +334,47 @@ def inject_prompt(ws_url: str, prompt: str) -> bool:
     
     # Parse result
     value = result.get("result", {}).get("result", {}).get("value", {})
-    if value.get("success"):
-        print(f"[CDP] ✅ Prompt injected successfully")
-        return True
-    else:
-        print(f"[CDP] ⚠️ Injection failed: {value.get('error')}")
-        if "logs" in value:
-            print("[CDP] 📝 Remote Logs:")
-            for log in value["logs"]:
-                print(f"      > {log}")
-        else:
-             # Fallback debug
-             print(f"[CDP] Raw result: {result}")
+    
+    # Always print logs for debugging
+    if "logs" in value and value["logs"]:
+        print("[CDP] 📝 Remote Logs:")
+        for log in value["logs"]:
+            print(f"      > {log}")
+    
+    if not value.get("success"):
+        print(f"[CDP] ⚠️ Focus failed: {value.get('error')}")
         return True  # Continue anyway
+    
+    print("[CDP] ✅ Input element focused")
+    
+    # Step 2: Use CDP Input.insertText to type the text (bypasses Lexical JS sandboxing)
+    print("[CDP] ⌨️ Typing via CDP Input.insertText...")
+    type_result = send_ws_command(ws_url, "Input.insertText", {"text": prompt})
+    if type_result:
+        print("[CDP] ✅ Text inserted via CDP")
+    else:
+        print("[CDP] ⚠️ Input.insertText failed")
+        return True
+    
+    # Step 3: Press Enter via CDP
+    time.sleep(0.2)  # Small delay to let editor process
+    print("[CDP] ⏎ Pressing Enter via CDP...")
+    send_ws_command(ws_url, "Input.dispatchKeyEvent", {
+        "type": "keyDown",
+        "key": "Enter",
+        "code": "Enter",
+        "windowsVirtualKeyCode": 13,
+        "nativeVirtualKeyCode": 13
+    })
+    send_ws_command(ws_url, "Input.dispatchKeyEvent", {
+        "type": "keyUp",
+        "key": "Enter",
+        "code": "Enter",
+        "windowsVirtualKeyCode": 13,
+        "nativeVirtualKeyCode": 13
+    })
+    print("[CDP] ✅ Enter key sent")
+    return True
 
 def rotate_context(ws_url: str) -> bool:
     """Clear context by reloading the page."""
