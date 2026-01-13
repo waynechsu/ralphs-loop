@@ -47,8 +47,20 @@ def find_chat_page(pages: list) -> dict | None:
         title = page.get("title", "")
         url = page.get("url", "")
         # Look for agent panel or main window
-        if "Antigravity" in title or "agent" in url.lower() or "chat" in title.lower():
+        # PRIORITIZE "Launchpad" or "jetski" which indicates the actual Agent UI
+        if "jetski" in url.lower() or "launchpad" in title.lower():
+            print(f"[DEBUG] Found Agent Page: {title} ({url})")
             return page
+            
+        if "Antigravity" in title or "agent" in url.lower() or "chat" in title.lower():
+            # Potential match, but keep looking for better one?
+            pass # optimization: let's scan all first
+
+    # Second pass: broader search
+    for page in pages:
+         title = page.get("title", "")
+         if "Antigravity" in title:
+             return page
     # Fallback to first available page
     return pages[0] if pages else None
 
@@ -68,6 +80,7 @@ def send_ws_command(ws_url: str, method: str, params: dict = None) -> dict | Non
     print(f"[DEBUG] Sending: {json.dumps(message)}")
     
     try:
+        # Updated to fix 403 Forbidden
         ws = websocket.create_connection(ws_url, timeout=10, suppress_origin=True)
         ws.send(json.dumps(message))
         result = json.loads(ws.recv())
