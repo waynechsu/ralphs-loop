@@ -245,8 +245,13 @@ def inject_prompt(ws_url: str, prompt: str) -> bool:
     # inspecting the Antigravity agent panel DOM structure.
     js_code = f"""
     (function() {{
+        const logs = [];
+        function log(msg) {{ logs.push(msg); }}
+
         // Try multiple selector strategies
         const selectors = [
+            'div[contenteditable="true"]',
+            '[contenteditable="true"]',
             'textarea[aria-label="Chat Input"]',
             '.chat-input textarea',
             '[data-testid="chat-input"]',
@@ -256,11 +261,26 @@ def inject_prompt(ws_url: str, prompt: str) -> bool:
         let input = null;
         
         // Helper to find input in a document (or shadow root)
-        function findInputInDoc(doc) {{
-            if (!doc) return null;
-            for (const sel of selectors) {{
-                const found = doc.querySelector(sel);
-                if (found) return found;
+        function findInputInDoc(root) {{
+            if (!root) return null;
+            
+            // 1. Check current root
+            if (root.querySelector) {{
+                for (const sel of selectors) {{
+                    const found = root.querySelector(sel);
+                    if (found) return found;
+                }}
+            }}
+            
+            // 2. Recursive Shadow DOM Search
+            if (root.querySelectorAll) {{
+                const all = root.querySelectorAll('*');
+                for (const el of all) {{
+                    if (el.shadowRoot) {{
+                        const found = findInputInDoc(el.shadowRoot);
+                        if (found) return found;
+                    }}
+                }}
             }}
             return null;
         }}
@@ -271,36 +291,53 @@ def inject_prompt(ws_url: str, prompt: str) -> bool:
         // 2. Search Iframes (Deep Search for Agent Panel)
         if (!input) {{
             const frames = document.querySelectorAll('iframe');
+            log("Found " + frames.length + " frames");
             for (const frame of frames) {{
                 try {{
+                    log("Checking frame " + frame.id + " (" + frame.src + ")");
                     const doc = frame.contentDocument;
                     if (doc) {{
                         input = findInputInDoc(doc);
                         if (input) {{
-                            console.log("Ralph Wiggum: Found input in iframe", frame.id);
+                            log("✅ Found input in iframe " + frame.id);
                             break;
+                        }} else {{
+                            log("❌ No input found in frame doc");
                         }}
+                    }} else {{
+                        log("⚠️ contentDocument is null (likely cross-origin)");
                     }}
                 }} catch (e) {{
-                    console.log("Ralph Wiggum: Cross-origin iframe blocked", e);
+                    log("Cross-origin iframe blocked: " + e.message);
                 }}
             }}
         }}
         
         if (!input) {{
-            console.error('Ralph Wiggum: Could not find chat input in Main or Iframes');
-            return {{ success: false, error: 'Input not found' }};
+            return {{ success: false, error: 'Input not found', logs: logs }};
         }}
         
         // For contenteditable (Lexical)
         if (input.contentEditable === 'true') {{
             input.focus();
-            document.execCommand('selectAll', false, null);
-            document.execCommand('insertText', false, "{escaped_prompt}");
+            
+            // Method 2: Direct text manipulation + Events (React friendly)
+            input.innerText = ''; 
+            const textToInsert = "{escaped_prompt}";
+            input.innerText = textToInsert;
+            
+            // Dispatch events to wake up React
+            const events = ['input', 'change', 'compositionstart', 'compositionend', 'keydown', 'keyup'];
+            events.forEach(evt => {{
+                input.dispatchEvent(new Event(evt, {{ bubbles: true }}));
+            }});
+            
         }} else {{
             // For textarea
+            input.focus();
             input.value = "{escaped_prompt}";
             input.dispatchEvent(new Event('input', {{ bubbles: true }}));
+            input.dispatchEvent(new Event('change', {{ bubbles: true }}));
         }}
         
         // Find and click send button
@@ -315,23 +352,33 @@ def inject_prompt(ws_url: str, prompt: str) -> bool:
             const btn = document.querySelector(sel);
             if (btn) {{
                 btn.click();
-                return {{ success: true }};
+                return {{ success: true, logs: logs }};
             }}
         }}
         
         // Try pressing Enter as fallback
         input.dispatchEvent(new KeyboardEvent('keydown', {{ key: 'Enter', bubbles: true }}));
-        return {{ success: true, method: 'enter-key' }};
+        return {{ success: true, method: 'enter-key', logs: logs }};
     }})();
     """
     
-    result = send_ws_command(ws_url, "Runtime.evaluate", {"expression": js_code})
-    if result and result.get("result", {}).get("result", {}).get("value", {}).get("success"):
+    result = send_ws_command(ws_url, "Runtime.evaluate", {"expression": js_code, "returnByValue": True})
+    
+    # Parse result
+    value = result.get("result", {}).get("result", {}).get("value", {})
+    if value.get("success"):
         print(f"[CDP] ✅ Prompt injected successfully")
         return True
     else:
-        print(f"[CDP] ⚠️ Injection result: {result}")
-        return True  # Continue anyway for demo purposes
+        print(f"[CDP] ⚠️ Injection failed: {value.get('error')}")
+        if "logs" in value:
+            print("[CDP] 📝 Remote Logs:")
+            for log in value["logs"]:
+                print(f"      > {log}")
+        else:
+             # Fallback debug
+             print(f"[CDP] Raw result: {result}")
+        return True  # Continue anyway
 
 def rotate_context(ws_url: str) -> bool:
     """Clear context by reloading the page."""
