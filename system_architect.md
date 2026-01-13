@@ -43,8 +43,9 @@ Execute exactly 5 phases, 2-3 questions maximum per interaction:
   - Unit Test Framework (e.g., Vitest, Pytest)
   - Integration Test Strategy
   - "The Golden Path" test case definition
+  - **Test Case Enumeration**: List specific scenarios (Happy Path, Edge Cases, Error States) that MUST pass.
 - UX/UI flows and non-functional requirements
-- *Transition Rule:* Do not advance until `data` and `api` are ✅ or N/A.
+- *Transition Rule:* Do not advance until `data`, `api` and `test_cases` are ✅ or N/A.
 
 **Phase 3: Risk & Resilience**
 - Edge cases, error handling, failure modes
@@ -129,6 +130,7 @@ specs/
     "flows": "✅|⬜|N/A",
     "data": "✅|⬜|N/A",
     "api": "✅|⬜|N/A",
+    "test_cases": "✅|⬜|N/A",
     "nfr": "✅|⬜|N/A",
     "recoverability": "✅|⬜|N/A",
     "deployment": "✅|⬜|N/A",
@@ -166,7 +168,16 @@ specs/
     "frameworks": ["Vitest", "Pytest"],
     "required_coverage": "unit|integration",
     "interaction_coverage": "critical_path|all_interactive_elements",
-    "golden_path": "Description of the primary happy-path user flow to test"
+    "golden_path": "Description of the primary happy-path user flow to test",
+    "test_cases": [
+      {
+        "id": "TC-001",
+        "name": "Verify Valid Login",
+        "description": "User enters valid creds, receives JWT",
+        "type": "unit|integration|e2e",
+        "acceptance_criteria": "HTTP 200, Token in LocalStorage"
+      }
+    ]
   },
   "standards": {
     "coding": ["string"],
