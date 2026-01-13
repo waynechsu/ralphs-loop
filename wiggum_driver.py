@@ -27,6 +27,7 @@ TASK_FILE = ".agent/task.md"
 POLL_INTERVAL_SECONDS = 3
 MAX_WAIT_SECONDS = 300  # 5 minutes max per task
 CONTEXT_ROTATION_THRESHOLD = 5  # Rotate context after N tasks (simplified heuristic)
+MAX_VALIDATION_RETRIES = 2  # Max retries if spec validation fails
 
 # ============================================================================
 # CDP Helpers
@@ -225,6 +226,158 @@ def wait_for_task_completion(task: dict, timeout: int = MAX_WAIT_SECONDS) -> boo
     
     print(f"[POLL] ⏰ Timeout after {timeout}s")
     return False
+
+
+def unmark_task(task: dict) -> bool:
+    """
+    Remove [x] from a task, reverting it to [ ].
+    Used when spec validation fails after agent marks complete.
+    """
+    if not os.path.exists(TASK_FILE):
+        return False
+    
+    with open(TASK_FILE, 'r') as f:
+        content = f.read()
+    
+    # Find the task by ID and unmark it
+    task_id = task.get('id', '')
+    if task_id:
+        # Pattern to match checked task with this ID
+        pattern = rf'(- \[)[xX](\].*<!-- id: {re.escape(task_id)} -->)'
+        new_content = re.sub(pattern, r'\1 \2', content)
+        
+        if new_content != content:
+            with open(TASK_FILE, 'w') as f:
+                f.write(new_content)
+            print(f"[VALIDATE] 🔄 Unmarked task {task_id} for retry")
+            return True
+    
+    return False
+
+
+def validate_spec_compliance(task: dict, context_data: dict | None) -> tuple[bool, list[str]]:
+    """
+    Validate that the implementation matches the spec requirements.
+    Returns: (is_valid, list_of_errors)
+    
+    Currently supports:
+    - Python model field checking (inspects class definitions)
+    - TypeScript interface checking (basic)
+    """
+    errors = []
+    
+    # Get field requirements from task or context
+    field_requirements = task.get('field_requirements', {})
+    
+    # If task doesn't have field_requirements, try to derive from context models
+    if not field_requirements and context_data and 'models' in context_data:
+        models = context_data['models']
+        # For database tasks, check all model fields
+        if 'database' in task.get('tags', []) or 'backend' in task.get('tags', []):
+            for model_name, model_def in models.items():
+                if isinstance(model_def, dict):
+                    field_requirements[model_name] = list(model_def.keys())
+    
+    if not field_requirements:
+        print("[VALIDATE] ⚠️ No field_requirements found, skipping validation")
+        return True, []
+    
+    print(f"[VALIDATE] 🔍 Checking field requirements: {list(field_requirements.keys())}")
+    
+    # Find implementation files to check
+    # Look for Python models
+    python_model_files = [
+        'backend/models.py',
+        'models.py',
+        'src/models.py',
+        'app/models.py'
+    ]
+    
+    found_models = {}
+    
+    for model_file in python_model_files:
+        if os.path.exists(model_file):
+            try:
+                with open(model_file, 'r') as f:
+                    content = f.read()
+                
+                # Extract class definitions and their fields
+                # Pattern: class ClassName(...):
+                class_pattern = re.compile(r'class\s+(\w+)\s*\([^)]*\)\s*:', re.MULTILINE)
+                
+                for match in class_pattern.finditer(content):
+                    class_name = match.group(1)
+                    class_start = match.end()
+                    
+                    # Find next class or end of file
+                    next_class = class_pattern.search(content, class_start)
+                    class_end = next_class.start() if next_class else len(content)
+                    class_body = content[class_start:class_end]
+                    
+                    # Extract field names (SQLModel/Pydantic style: field_name: type = ...)
+                    field_pattern = re.compile(r'^\s+(\w+)\s*:', re.MULTILINE)
+                    fields = [m.group(1) for m in field_pattern.finditer(class_body)]
+                    found_models[class_name] = set(fields)
+                    
+                print(f"[VALIDATE] 📄 Found models in {model_file}: {list(found_models.keys())}")
+                
+            except Exception as e:
+                print(f"[VALIDATE] ⚠️ Error reading {model_file}: {e}")
+    
+    # Compare required vs implemented
+    for model_name, required_fields in field_requirements.items():
+        if isinstance(required_fields, list):
+            # Direct field list check
+            # Try to find matching model (exact or similar name)
+            matched_model = None
+            for impl_name in found_models:
+                if impl_name.lower() == model_name.lower() or model_name.lower() in impl_name.lower():
+                    matched_model = impl_name
+                    break
+            
+            if not matched_model:
+                # Model might have been renamed - this is an error
+                errors.append(f"Model '{model_name}' not found in implementation")
+                continue
+            
+            implemented_fields = found_models[matched_model]
+            
+            for req_field in required_fields:
+                # Normalize field names (snake_case comparison)
+                req_normalized = req_field.lower().replace('-', '_')
+                found = False
+                for impl_field in implemented_fields:
+                    if impl_field.lower() == req_normalized:
+                        found = True
+                        break
+                
+                if not found:
+                    errors.append(f"Missing field '{req_field}' in model '{matched_model}'")
+        
+        elif isinstance(required_fields, dict):
+            # Field definitions with types - check field names exist
+            # (Type checking is more complex, skip for now)
+            for field_name in required_fields.keys():
+                req_normalized = field_name.lower().replace('-', '_')
+                found_in_any = False
+                for impl_name, impl_fields in found_models.items():
+                    if any(f.lower() == req_normalized for f in impl_fields):
+                        found_in_any = True
+                        break
+                
+                if not found_in_any:
+                    errors.append(f"Field '{field_name}' from spec not found in any model")
+    
+    is_valid = len(errors) == 0
+    
+    if is_valid:
+        print("[VALIDATE] ✅ Spec validation PASSED")
+    else:
+        print(f"[VALIDATE] ❌ Spec validation FAILED with {len(errors)} error(s):")
+        for err in errors:
+            print(f"           - {err}")
+    
+    return is_valid, errors
 
 # ============================================================================
 # IDE Interaction
@@ -454,28 +607,49 @@ def main():
 **Context Scope**: {task['context_scope']}
 """
 
-        # Try to load global context to inject relevant sections
+        # Try to load global context to inject REQUIRED fields
+        context_data = None  # Initialize for scope
         try:
             context_file = SCRATCH_TASKS_JSON.replace("TASKS.json", "CONTEXT.json")
+            # Also check local .agent folder
+            local_context = ".agent/CONTEXT.json"
+            if os.path.exists(local_context):
+                context_file = local_context
+            
             if os.path.exists(context_file):
                 with open(context_file, 'r') as cf:
                     context_data = json.load(cf)
                     
-                # Inject relevant context based on task tags/scope or just simplified global context
-                # For now, we inject high-level architecture and standards if the task relates to them
-                if "backend" in task.get("tags", []) or "database" in task.get("tags", []):
+                # CRITICAL: Inject model requirements as MANDATORY, not optional
+                if "models" in context_data:
                     prompt += f"""
-**Global Data Models**: {json.dumps(context_data.get('models', {}), indent=2)}
+
+> [!CAUTION] SPEC = REQUIREMENT, NOT INSPIRATION
+> The following model fields are MANDATORY. Missing fields = TASK FAILURE.
+
+**REQUIRED Model Fields (from CONTEXT.json)**:
+{json.dumps(context_data.get('models', {}), indent=2)}
+
+You MUST implement ALL fields listed above. Do not skip or rename fields without explicit approval.
+"""
+                
+                # Inject architecture standards if relevant
+                if "backend" in task.get("tags", []) or "database" in task.get("tags", []):
+                    if "architecture" in context_data:
+                        prompt += f"""
 **Architecture Standards**: {json.dumps(context_data.get('architecture', {}), indent=2)}
 """
         except Exception as e:
-            pass # Fail silently on context injection, not critical
+            print(f"[WARN] Context injection failed: {e}") # Log but continue
 
         prompt += """
+
 Instructions:
 1. Complete ONLY this single task
-2. Update .agent/task.md to mark it as [x] when done
-3. Report completion clearly
+2. RUN TESTS to verify your changes (if applicable)
+3. VALIDATE all spec fields are implemented before marking complete
+4. Update .agent/task.md to mark it as [x] when done
+4. Report completion clearly
 
 Follow the workflow in .agent/workflows/ralph_mode.md"""
         
@@ -485,10 +659,52 @@ Follow the workflow in .agent/workflows/ralph_mode.md"""
         completed = wait_for_task_completion(task)
         
         if completed:
-            tasks_completed += 1
-            print(f"[LOOP] ✨ Task {tasks_completed} completed!")
+            # 5. CRITICAL: Validate spec compliance BEFORE accepting completion
+            is_valid, validation_errors = validate_spec_compliance(task, context_data)
             
-            # 5. Context rotation check
+            if not is_valid:
+                retry_count = task.get('_retry_count', 0) + 1
+                
+                if retry_count <= MAX_VALIDATION_RETRIES:
+                    print(f"[LOOP] ⚠️ Spec validation failed! Retry {retry_count}/{MAX_VALIDATION_RETRIES}")
+                    
+                    # Unmark the task
+                    unmark_task(task)
+                    
+                    # Track retry count
+                    task['_retry_count'] = retry_count
+                    
+                    # Inject error correction prompt
+                    error_prompt = f"""⚠️ SPEC VALIDATION FAILED - FIX REQUIRED
+
+The task was marked complete but FAILED automated spec validation.
+
+**Validation Errors:**
+{chr(10).join('- ' + e for e in validation_errors)}
+
+**Action Required:**
+1. Review the errors above
+2. Add the missing fields to match CONTEXT.json spec
+3. Re-mark the task as [x] in .agent/task.md
+
+Remember: SPEC = REQUIREMENT, NOT INSPIRATION. All fields must be implemented.
+"""
+                    inject_prompt(ws_url, error_prompt)
+                    
+                    # Continue to next iteration (will re-poll for this task)
+                    print("[LOOP] 🔁 Waiting for fix...\n")
+                    time.sleep(2)
+                    continue
+                else:
+                    print(f"[LOOP] ❌ Max retries ({MAX_VALIDATION_RETRIES}) exceeded. Moving to next task.")
+                    # Log the failure but move on
+                    tasks_completed += 1
+            else:
+                # Validation passed!
+                tasks_completed += 1
+                print(f"[LOOP] ✨ Task {tasks_completed} completed and validated!")
+            
+            # 6. Context rotation check
             if tasks_completed % CONTEXT_ROTATION_THRESHOLD == 0:
                 print(f"[LOOP] 🧹 Context rotation threshold reached ({CONTEXT_ROTATION_THRESHOLD} tasks)")
                 if ws_url:

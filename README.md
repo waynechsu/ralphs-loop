@@ -13,12 +13,26 @@ The "Ralph Wiggum Loop" is a design pattern for autonomous agents:
 2.  **External Memory**: State is persisted only in file artifacts (e.g. `TASKS.json` or `task.md`), not in the LLM's context window.
 3.  **"The Gutter" Avoidance**: By resetting the environment consistently, we prevent the degradation of reasoning that happens in long-running chat sessions.
 
+> [!CAUTION]
+> **SPEC = REQUIREMENT, NOT INSPIRATION**  
+> Every field defined in `CONTEXT.json` is a mandatory contract.
+> The driver now injects model requirements with enforcement language.
+> Agents that skip or rename fields without updating the spec have FAILED the task.
+
 ## 🏗️ Architecture (V2)
 
-- **`wiggum_driver.py`**: The "Manager". Connects to Antigravity via CDP (Port 9000).
-- **`.agent/TASKS.json`**: **(Recommended)** The Executable Plan. A structured list of tasks with Actions, Outcomes, and Verification steps.
-- **`.agent/CONTEXT.json`**: **(Recommended)** The Rules. Defines global constants, database schema, and "Blast Shield" rules injected into every prompt.
+- **`wiggum_driver.py`**: The "Manager". Connects to Antigravity via CDP (Port 9000). Injects CONTEXT.json model requirements as MANDATORY contracts.
+- **`.agent/TASKS.json`**: **(Recommended)** The Executable Plan. Now supports `field_requirements` to specify mandatory model fields per task.
+- **`.agent/CONTEXT.json`**: **(Recommended)** The Rules. Defines models, naming enforcement, and "Blast Shield" rules.
 - **`.agent/task.md`**: The Scoreboard. Used by the agent to mark physical progress (`[x]`), synced automatically by the driver.
+
+### Key Files
+
+| File | Purpose |
+|------|--------|
+| `TASKS.json` | Task list with `field_requirements` for each model task |
+| `CONTEXT.json` | Model schemas, `naming_enforcement`, architecture rules |
+| `ralph_mode.md` | Workflow with mandatory spec validation steps |
 
 ## 🚀 Getting Started
 
