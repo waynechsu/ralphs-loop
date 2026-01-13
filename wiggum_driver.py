@@ -61,13 +61,14 @@ def send_ws_command(ws_url: str, method: str, params: dict = None) -> dict | Non
         return None
     
     message = {
-        "id": int(time.time() * 1000),  # Unique ID
+        "id": 1,  # Fixed ID for stateless connection
         "method": method,
         "params": params or {}
     }
+    print(f"[DEBUG] Sending: {json.dumps(message)}")
     
     try:
-        ws = websocket.create_connection(ws_url, timeout=10)
+        ws = websocket.create_connection(ws_url, timeout=10, suppress_origin=True)
         ws.send(json.dumps(message))
         result = json.loads(ws.recv())
         ws.close()
@@ -80,13 +81,67 @@ def send_ws_command(ws_url: str, method: str, params: dict = None) -> dict | Non
 # Task Management
 # ============================================================================
 
+TASKS_JSON_FILE = ".agent/TASKS.json"  # Fallback location
+SCRATCH_TASKS_JSON = "/Users/waynehsu/.gemini/antigravity/scratch/flight_hotel_tracker/TASKS.json"
+
 def parse_task_file() -> tuple[list[dict], str]:
     """
-    Parse the task file and return structured task list.
+    Parse tasks from JSON (preferred) or Markdown (legacy).
     Returns: (tasks, raw_content)
-    Each task: {"line_num": int, "complete": bool, "action": str, "outcome": str, "raw": str}
     """
     tasks = []
+    
+    # 1. Try to read from JSON source (most robust)
+    json_path = None
+    # Check local project folder FIRST (Best Practice)
+    if os.path.exists(TASKS_JSON_FILE):
+        json_path = TASKS_JSON_FILE
+    # Fallback to scratch folder if not found locally
+    elif os.path.exists(SCRATCH_TASKS_JSON):
+        json_path = SCRATCH_TASKS_JSON
+        
+    if json_path:
+        try:
+            with open(json_path, 'r') as f:
+                data = json.load(f)
+                
+            # Check existing status from task.md to sync completion state
+            # (We still use task.md for STATUS tracking because the agent writes to it)
+            completed_ids = set()
+            if os.path.exists(TASK_FILE):
+                with open(TASK_FILE, 'r') as f:
+                    md_content = f.read()
+                    # Find all [x] completed items
+                    # Matches: - [x] ... <!-- id: TASK-123 -->
+                    # Note: case insensitive for [x] vs [X]
+                    completed_matches = re.findall(
+                        r'^\s*-\s*\[x\]\s*.*<!--\s*id:\s*(.*?)\s*-->', 
+                        md_content, 
+                        re.MULTILINE | re.IGNORECASE
+                    )
+                    completed_ids = set(completed_matches)
+
+            for i, item in enumerate(data):
+                tid = item.get("id", f"TASK-{i}")
+                is_complete = tid in completed_ids
+                
+                tasks.append({
+                    "line_num": i, # Virtual line number
+                    "complete": is_complete,
+                    "action": item.get("action"),
+                    "outcome": item.get("outcome"),
+                    "verification": item.get("verification"),
+                    "context_scope": item.get("context_scope"),
+                    "id": tid,
+                    "raw": json.dumps(item)
+                })
+            return tasks, "JSON_SOURCE"
+            
+        except Exception as e:
+            print(f"[WARN] Failed to parse JSON tasks: {e}")
+            # Fallthrough to Markdown parser
+
+    # 2. Fallback to Markdown parsing
     raw_content = ""
     
     if not os.path.exists(TASK_FILE):
@@ -98,15 +153,17 @@ def parse_task_file() -> tuple[list[dict], str]:
         lines = raw_content.splitlines()
     
     # Regex for: - [ ] **Action**: X → **Outcome**: Y
-    # Also handles simpler: - [ ] Task description
     pattern_full = re.compile(
         r'^- \[([ x])\]\s*\*\*Action\*\*:\s*(.+?)\s*→\s*\*\*Outcome\*\*:\s*(.+)$'
     )
+    pattern_id = re.compile(r'<!-- id: (.*?) -->')
     pattern_simple = re.compile(r'^- \[([ x])\]\s*(.+)$')
     
     for i, line in enumerate(lines):
         match_full = pattern_full.match(line.strip())
         match_simple = pattern_simple.match(line.strip())
+        match_id = pattern_id.search(line)
+        tid = match_id.group(1) if match_id else f"MD-{i}"
         
         if match_full:
             tasks.append({
@@ -114,6 +171,7 @@ def parse_task_file() -> tuple[list[dict], str]:
                 "complete": match_full.group(1) == 'x',
                 "action": match_full.group(2).strip(),
                 "outcome": match_full.group(3).strip(),
+                "id": tid,
                 "raw": line
             })
         elif match_simple:
@@ -122,6 +180,7 @@ def parse_task_file() -> tuple[list[dict], str]:
                 "complete": match_simple.group(1) == 'x',
                 "action": match_simple.group(2).strip(),
                 "outcome": None,
+                "id": tid,
                 "raw": line
             })
     
@@ -309,6 +368,33 @@ def main():
             prompt += f"""
 **Success Criteria**: {task['outcome']}
 """
+        if task.get("verification"):
+            prompt += f"""
+**Verification**: {json.dumps(task['verification'], indent=2)}
+"""
+        # Inject Context from JSON if available
+        if task.get("context_scope"):
+             prompt += f"""
+**Context Scope**: {task['context_scope']}
+"""
+
+        # Try to load global context to inject relevant sections
+        try:
+            context_file = SCRATCH_TASKS_JSON.replace("TASKS.json", "CONTEXT.json")
+            if os.path.exists(context_file):
+                with open(context_file, 'r') as cf:
+                    context_data = json.load(cf)
+                    
+                # Inject relevant context based on task tags/scope or just simplified global context
+                # For now, we inject high-level architecture and standards if the task relates to them
+                if "backend" in task.get("tags", []) or "database" in task.get("tags", []):
+                    prompt += f"""
+**Global Data Models**: {json.dumps(context_data.get('models', {}), indent=2)}
+**Architecture Standards**: {json.dumps(context_data.get('architecture', {}), indent=2)}
+"""
+        except Exception as e:
+            pass # Fail silently on context injection, not critical
+
         prompt += """
 Instructions:
 1. Complete ONLY this single task
