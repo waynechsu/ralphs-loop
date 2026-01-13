@@ -46,21 +46,13 @@ def find_chat_page(pages: list) -> dict | None:
     for page in pages:
         title = page.get("title", "")
         url = page.get("url", "")
-        # Look for agent panel or main window
-        # PRIORITIZE "Launchpad" or "jetski" which indicates the actual Agent UI
-        if "jetski" in url.lower() or "launchpad" in title.lower():
-            print(f"[DEBUG] Found Agent Page: {title} ({url})")
-            return page
-            
-        if "Antigravity" in title or "agent" in url.lower() or "chat" in title.lower():
-            # Potential match, but keep looking for better one?
-            pass # optimization: let's scan all first
-
-    # Second pass: broader search
-    for page in pages:
-         title = page.get("title", "")
-         if "Antigravity" in title:
+        
+        # Look for the Main Project Window or Antigravity
+        if "Antigravity" in title or "Flight_Hotel_Tracker" in title:
+             # This is likely the main window
+             # We might need to handle iframes later if this is just the shell
              return page
+
     # Fallback to first available page
     return pages[0] if pages else None
 
@@ -262,13 +254,41 @@ def inject_prompt(ws_url: str, prompt: str) -> bool:
         ];
         
         let input = null;
-        for (const sel of selectors) {{
-            input = document.querySelector(sel);
-            if (input) break;
+        
+        // Helper to find input in a document (or shadow root)
+        function findInputInDoc(doc) {{
+            if (!doc) return null;
+            for (const sel of selectors) {{
+                const found = doc.querySelector(sel);
+                if (found) return found;
+            }}
+            return null;
+        }}
+
+        // 1. Search Main Document
+        input = findInputInDoc(document);
+
+        // 2. Search Iframes (Deep Search for Agent Panel)
+        if (!input) {{
+            const frames = document.querySelectorAll('iframe');
+            for (const frame of frames) {{
+                try {{
+                    const doc = frame.contentDocument;
+                    if (doc) {{
+                        input = findInputInDoc(doc);
+                        if (input) {{
+                            console.log("Ralph Wiggum: Found input in iframe", frame.id);
+                            break;
+                        }}
+                    }}
+                }} catch (e) {{
+                    console.log("Ralph Wiggum: Cross-origin iframe blocked", e);
+                }}
+            }}
         }}
         
         if (!input) {{
-            console.error('Ralph Wiggum: Could not find chat input');
+            console.error('Ralph Wiggum: Could not find chat input in Main or Iframes');
             return {{ success: false, error: 'Input not found' }};
         }}
         
