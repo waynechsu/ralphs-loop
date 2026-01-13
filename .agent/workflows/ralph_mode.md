@@ -35,11 +35,14 @@ This workflow is designed to be run repeatedly by the external driver loop.
 ### 3b. Run Tests ⚠️ CRITICAL
 - Run unit/integration tests for the modified component.
 - Ensure ALL tests pass (`npm test` / `pytest`).
-- If no tests exist, create a basic happy-path test.
+- **Required Coverage**: Check `interaction_coverage` in CONTEXT.json.
+  - If `all_interactive_elements`: You MUST test every button click and input.
+  - If `critical_path`: Test the happy-path flow.
 
 ### 4. Validate Against Spec ⚠️ CRITICAL
 Before marking complete, verify:
 - [ ] ALL Tests pass (Green build)
+- [ ] Coverage meets `interaction_coverage` standard (e.g. all buttons tested)
 - [ ] All required model fields from `CONTEXT.json` are implemented
 - [ ] Naming matches spec (or divergence is documented in changelog)
 - [ ] If `field_requirements` exist in TASKS.json, ALL are present

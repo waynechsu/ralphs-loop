@@ -639,6 +639,14 @@ You MUST implement ALL fields listed above. Do not skip or rename fields without
                         prompt += f"""
 **Architecture Standards**: {json.dumps(context_data.get('architecture', {}), indent=2)}
 """
+
+                # Inject QA Rigour if specified
+                testing_strategy = context_data.get("testing_strategy", {})
+                if testing_strategy.get("interaction_coverage") == "all_interactive_elements":
+                            prompt += """
+> [!IMPORTANT] QA RIGOUR LEVEL: MAXIMUM
+> Spec requires 'all_interactive_elements'. You must write tests for EVERY button and input field created.
+"""
         except Exception as e:
             print(f"[WARN] Context injection failed: {e}") # Log but continue
 

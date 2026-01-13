@@ -158,11 +158,12 @@ specs/
   "testing_strategy": {
     "frameworks": ["Vitest", "Pytest"],
     "required_coverage": "unit|integration",
+    "interaction_coverage": "critical_path|all_interactive_elements",
     "golden_path": "Description of the primary happy-path user flow to test"
   },
   "standards": {
     "coding": ["string"],
-    "testing": ["Must include happy-path", "Must test error states"],
+    "testing": ["Must include happy-path", "Must test error states", "Verify all button clicks"],
     "deployment": ["string"]
   },
   "architecture": {
