@@ -286,6 +286,7 @@ def inject_prompt(ws_url: str, prompt: str) -> bool:
         }}
 
         // 1. Search Main Document
+        let inputDoc = document; // Track which document contains the input
         input = findInputInDoc(document);
 
         // 2. Search Iframes (Deep Search for Agent Panel)
@@ -299,6 +300,7 @@ def inject_prompt(ws_url: str, prompt: str) -> bool:
                     if (doc) {{
                         input = findInputInDoc(doc);
                         if (input) {{
+                            inputDoc = doc; // Remember we found it in this iframe's document
                             log("✅ Found input in iframe " + frame.id);
                             break;
                         }} else {{
@@ -340,7 +342,7 @@ def inject_prompt(ws_url: str, prompt: str) -> bool:
             input.dispatchEvent(new Event('change', {{ bubbles: true }}));
         }}
         
-        // Find and click send button
+        // Find and click send button (search in same document where input was found)
         const btnSelectors = [
             'button[aria-label="Send Message"]',
             'button[type="submit"]',
@@ -349,15 +351,18 @@ def inject_prompt(ws_url: str, prompt: str) -> bool:
         ];
         
         for (const sel of btnSelectors) {{
-            const btn = document.querySelector(sel);
+            // Search in the document where we found the input
+            const btn = inputDoc.querySelector(sel);
             if (btn) {{
                 btn.click();
+                log("✅ Clicked button: " + sel);
                 return {{ success: true, logs: logs }};
             }}
         }}
         
+        log("⚠️ No button found, using Enter key fallback");
         // Try pressing Enter as fallback
-        input.dispatchEvent(new KeyboardEvent('keydown', {{ key: 'Enter', bubbles: true }}));
+        input.dispatchEvent(new KeyboardEvent('keydown', {{ key: 'Enter', keyCode: 13, bubbles: true }}));
         return {{ success: true, method: 'enter-key', logs: logs }};
     }})();
     """
