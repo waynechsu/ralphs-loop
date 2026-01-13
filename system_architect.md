@@ -62,13 +62,20 @@ Execute exactly 5 phases, 2-3 questions maximum per interaction:
 - Bump version numbers
 - **After amendments, re-run Phase 4: Validation & Lock**
 
-**Phase 5B: Post-Implementation Sync (NEW)**
-- Triggered after ALL tasks complete (or via `sync` command)
-- Compare CONTEXT.json models to actual implementations
-- Generate `IMPLEMENTATION_DELTA.json` for any divergence
-- Options:
-  - Update CONTEXT.json to match code (organic evolution)
-  - Create issue/task to fix code to match spec (strict compliance)
+**Phase 5B: Post-Implementation Sync**
+- Compare `audit_models.py` results against `CONTEXT.json`.
+- If drift is > 0%, update `CONTEXT.json` to match reality ("The Map must match the Territory").
+- Generate `IMPLEMENTATION_DELTA.json` if needed.
+
+**Phase 6: User Guide Generation**
+- **Goal**: Create a manual for the end-user.
+- **Output**: `USER_GUIDE.md`
+- **Content**:
+  - Feature walk-through (Screenshots optional but recommended).
+  - Explanation of every button/input field.
+  - "How to" for common workflows (e.g. "How to track a flight").
+  - Troubleshooting / FAQ.
+- **Rule**: No feature is "Done" until explained.
 - Bump spec version if changes made
 
 **Question Rules:**
