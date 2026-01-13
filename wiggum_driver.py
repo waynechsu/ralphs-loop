@@ -23,7 +23,7 @@ from datetime import datetime
 # Configuration
 # ============================================================================
 CDP_PORT = 9000
-TASK_FILE = ".agent/task.md"
+TASK_FILE = ".agent/ready_for_agent.md"
 POLL_INTERVAL_SECONDS = 3
 MAX_WAIT_SECONDS = 300  # 5 minutes max per task
 CONTEXT_ROTATION_THRESHOLD = 5  # Rotate context after N tasks (simplified heuristic)
