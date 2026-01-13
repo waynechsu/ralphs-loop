@@ -57,6 +57,16 @@ The driver will now autonomously:
 - **Turbo Mode**: For full autonomy, set your IDE Review Policy to "Always Proceed".
 - **Sandboxing**: Ensure your IDE has a "Terminal Command Deny List" enabled (e.g., blocking `rm -rf`) since the agent runs autonomously.
 
+## 🛠️ Applying to Other Projects
+
+To use this on a real project (e.g., your web app):
+
+1.  **Copy Files**: Copy `wiggum_driver.py`, `launch_ide.sh`, and `requirements.txt` to your project root.
+2.  **Create Folders**: Make sure `.agent/` and `.agent/workflows/` exist.
+3.  **Copy Workflow**: Copy `ralph_mode.md` into `.agent/workflows/`.
+4.  **Define Tasks**: Create `.agent/task.md`.
+5.  **Launch**: Run `./launch_ide.sh` and then `python3 wiggum_driver.py`.
+
 ## License
 
 MIT
