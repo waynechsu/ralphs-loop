@@ -8,6 +8,7 @@ Implements:
 - File-based completion detection
 - Robust task parsing (Action → Outcome format)
 - Context rotation via Page.reload
+- 3-layer QA verification (tests, execution, visual/semantic)
 """
 
 import json
@@ -19,6 +20,14 @@ import re
 import os
 from datetime import datetime
 
+# Import QA verification module
+try:
+    from qa_verification import QAVerifier
+    QA_VERIFICATION_AVAILABLE = True
+except ImportError:
+    QA_VERIFICATION_AVAILABLE = False
+    print("[WARN] qa_verification module not found. QA checks disabled.")
+
 # ============================================================================
 # Configuration
 # ============================================================================
@@ -28,6 +37,8 @@ POLL_INTERVAL_SECONDS = 3
 MAX_WAIT_SECONDS = 300  # 5 minutes max per task
 CONTEXT_ROTATION_THRESHOLD = 5  # Rotate context after N tasks (simplified heuristic)
 MAX_VALIDATION_RETRIES = 2  # Max retries if spec validation fails
+MAX_QA_RETRIES = 2  # Max retries if QA verification fails
+ENABLE_QA_VERIFICATION = True  # Set to False to disable QA layer
 
 # ============================================================================
 # CDP Helpers
@@ -650,6 +661,36 @@ You MUST implement ALL fields listed above. Do not skip or rename fields without
         except Exception as e:
             print(f"[WARN] Context injection failed: {e}") # Log but continue
 
+        # Try to load OPTIONAL brand context for UI consistency
+        brand_tokens = None
+        brand_file = ".agent/design_tokens.json"
+        if os.path.exists(brand_file):
+            try:
+                with open(brand_file, 'r') as bf:
+                    brand_tokens = json.load(bf)
+                print(f"[LOOP] 🎨 Brand tokens loaded from {brand_file}")
+            except Exception as e:
+                print(f"[WARN] Failed to load brand tokens: {e}")
+        
+        # Inject brand context for UI/frontend tasks
+        if brand_tokens and any(t in task.get("tags", []) for t in ["frontend", "ui", "component"]):
+            prompt += f"""
+
+> [!TIP] BRAND GUIDELINES ACTIVE
+> This project has a defined design system. Use these tokens for visual consistency.
+
+**Design Tokens (from design_tokens.json):**
+```json
+{json.dumps(brand_tokens, indent=2)}
+```
+
+**Requirements:**
+- Use the defined colors (no hardcoded hex values)
+- Follow typography settings (fontPrimary, fontSecondary)
+- Apply consistent spacing and border-radius
+- Maintain brand voice in any UI copy
+"""
+
         prompt += """
 
 Instructions:
@@ -708,9 +749,47 @@ Remember: SPEC = REQUIREMENT, NOT INSPIRATION. All fields must be implemented.
                     # Log the failure but move on
                     tasks_completed += 1
             else:
-                # Validation passed!
-                tasks_completed += 1
-                print(f"[LOOP] ✨ Task {tasks_completed} completed and validated!")
+                # Spec validation passed! Now run QA verification.
+                qa_passed = True
+                
+                if ENABLE_QA_VERIFICATION and QA_VERIFICATION_AVAILABLE:
+                    print("[LOOP] 🔍 Running QA verification...")
+                    verifier = QAVerifier(context_data)
+                    
+                    # Get project base path from task file location
+                    base_path = os.path.dirname(os.path.abspath(TASK_FILE)) or "."
+                    base_path = os.path.dirname(base_path)  # Go up from .agent/
+                    
+                    qa_passed, qa_results = verifier.verify_all(
+                        task,
+                        ws_url=ws_url,
+                        base_path=base_path
+                    )
+                    
+                    if not qa_passed:
+                        qa_retry_count = task.get('_qa_retry_count', 0) + 1
+                        
+                        if qa_retry_count <= MAX_QA_RETRIES:
+                            print(f"[LOOP] ⚠️ QA verification failed! Retry {qa_retry_count}/{MAX_QA_RETRIES}")
+                            
+                            # Unmark the task
+                            unmark_task(task)
+                            task['_qa_retry_count'] = qa_retry_count
+                            
+                            # Inject QA fix prompt
+                            fix_prompt = verifier.format_failure_prompt(qa_results)
+                            inject_prompt(ws_url, fix_prompt)
+                            
+                            print("[LOOP] 🔁 Waiting for QA fix...\n")
+                            time.sleep(2)
+                            continue
+                        else:
+                            print(f"[LOOP] ❌ Max QA retries ({MAX_QA_RETRIES}) exceeded.")
+                            qa_passed = True  # Move on despite failures
+                
+                if qa_passed:
+                    tasks_completed += 1
+                    print(f"[LOOP] ✨ Task {tasks_completed} completed and verified!")
             
             # 6. Context rotation check
             if tasks_completed % CONTEXT_ROTATION_THRESHOLD == 0:

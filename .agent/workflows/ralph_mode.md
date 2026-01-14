@@ -39,6 +39,16 @@ This workflow is designed to be run repeatedly by the external driver loop.
   - If `all_interactive_elements`: You MUST test every button click and input.
   - If `critical_path`: Test the happy-path flow.
 
+### 3c. Self-Review (UI Tasks) ⚠️ NEW
+Before marking complete, mentally screenshot your UI and check:
+- [ ] Every table has headers (no blank rows at top)
+- [ ] Every axis is labeled (X = dates, Y = prices, etc.)
+- [ ] No "undefined", "NaN", or placeholder text visible
+- [ ] Layout is logical — nothing overlapping or cut off
+- [ ] A user could understand this without explanation
+
+> The driver will run automated LLM visual checks. Catch issues yourself first!
+
 ### 4. Validate Against Spec ⚠️ CRITICAL
 Before marking complete, verify:
 - [ ] ALL Tests pass (Green build)
@@ -52,7 +62,25 @@ Before marking complete, verify:
 ### 5. Update Task List
 - Mark the item as `[x]` in `.agent/task.md`.
 
-### 6. Report Completion
+### 6. Automated QA Verification ⚠️ NEW
+After you mark complete, the driver automatically runs:
+
+1. **Test Existence Check**: Do test files exist for this task scope?
+2. **Test Execution**: Do all tests pass? Failures block completion.
+3. **Visual/Semantic Check** (UI tasks): LLM reviews screenshot for obvious issues.
+
+If ANY layer fails, you'll receive a fix prompt like:
+```
+⚠️ QA VERIFICATION FAILED
+- Layer: visual_semantic
+- Issue: Table is missing header row
+- Suggested Fix: Add column headers to price matrix
+```
+
+**You must fix and re-mark the task as [x].**
+
+### 7. Report Completion
 - State clearly: "I have completed the task: [Task Name]".
 - If any spec divergence occurred, note it: "Divergence: [field] renamed to [new_name]"
 - This signal allows the external driver to reset the loop.
+

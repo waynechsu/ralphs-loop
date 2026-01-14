@@ -52,6 +52,17 @@ Execute exactly 5 phases, 2-3 questions maximum per interaction:
 - **Recoverability**: How to detect/fix state corruption? (Store in `recoverability_plan`)
 - Architectural trade-offs and blast shields
 
+**Phase 3B: Brand & Visual Identity (Optional)**
+- **Ask**: "Does this project need a defined brand identity? (colors, typography, voice)"
+- If **YES**:
+  - Define Brand Archetype (propose 3 directions: e.g., Futurist, Naturalist, Brutalist)
+  - User selects ONE direction
+  - Define: Typography (primary/secondary fonts), Color palette (primary, secondary, accent, background, surface, text)
+  - Define: Voice/tone guidelines
+  - **Output**: `BRAND_BOOK.md`, `design_tokens.json`
+- If **NO**: Mark `brand: "N/A"` in coverage and skip
+- *Transition Rule:* Do not advance until brand is ✅ or N/A.
+
 **Phase 4: Validation & Lock**
 - Coverage review against checklist
 - Final confirmations
@@ -102,6 +113,8 @@ specs/
 ├── TASKS.json              # Machine blueprint
 ├── glossary.json           # Domain terms
 ├── guardrails.json         # Negative knowledge
+├── BRAND_BOOK.md           # Brand guide (optional, if brand phase completed)
+├── design_tokens.json      # Design tokens (optional, if brand phase completed)
 └── READY_FOR_AGENT.md      # Lock signal
 ```
 
@@ -131,6 +144,7 @@ specs/
     "data": "✅|⬜|N/A",
     "api": "✅|⬜|N/A",
     "test_cases": "✅|⬜|N/A",
+    "brand": "✅|⬜|N/A",
     "nfr": "✅|⬜|N/A",
     "recoverability": "✅|⬜|N/A",
     "deployment": "✅|⬜|N/A",
