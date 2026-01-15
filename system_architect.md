@@ -40,8 +40,12 @@ Execute exactly 5 phases, 2-3 questions maximum per interaction:
 - Tech stack and data models (JSON Schema)
 - API surfaces (OpenAPI-style)
 - **Define QA Strategy (Mandatory)**:
-  - Unit Test Framework (e.g., Vitest, Pytest)
-  - Integration Test Strategy
+  - Unit Test Framework (e.g., Vitest, Pytest) - MUST specify required test files (e.g. `tests/test_auth.ts`).
+  - **Unit Tests**: MUST cover core logic, data models, and validation.
+  - **Integration/E2E Tests**: MUST test full pipeline flows with mock data.
+  - **Reliability Tests**:
+    - If LLM is used: MUST test fallback behavior for malformed/failed responses.
+    - If external APIs/scraping: MUST include health probe script for monitoring.
   - "The Golden Path" test case definition
   - **Test Case Enumeration**: List specific scenarios (Happy Path, Edge Cases, Error States) that MUST pass.
 - UX/UI flows and non-functional requirements
@@ -183,19 +187,32 @@ specs/
     "required_coverage": "unit|integration",
     "interaction_coverage": "critical_path|all_interactive_elements",
     "golden_path": "Description of the primary happy-path user flow to test",
+    "required_test_types": {
+      "unit": "MUST cover core logic, data models, validation",
+      "integration": "MUST test full pipeline flows with mock data",
+      "e2e": "MUST test critical user journeys end-to-end",
+      "reliability": "MUST test fallback behavior for LLM/external APIs",
+      "monitoring": "MUST include health probe for external dependencies"
+    },
     "test_cases": [
       {
         "id": "TC-001",
         "name": "Verify Valid Login",
         "description": "User enters valid creds, receives JWT",
-        "type": "unit|integration|e2e",
+        "type": "unit|integration|e2e|reliability|monitoring",
         "acceptance_criteria": "HTTP 200, Token in LocalStorage"
       }
     ]
   },
-  "standards": {
+    "standards": {
     "coding": ["string"],
-    "testing": ["Must include happy-path", "Must test error states", "Verify all button clicks"],
+    "testing": [
+      "Must include unit tests for all core logic",
+      "Must include E2E/integration tests for full pipeline",
+      "Must test LLM/API fallback behavior if applicable",
+      "Must include health probe script for external dependencies",
+      "Require explicit test files for data models"
+    ],
     "deployment": ["string"]
   },
   "architecture": {
