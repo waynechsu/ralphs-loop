@@ -1,0 +1,145 @@
+[
+  {
+    "id": "TASK-001",
+    "action": "Define project context and constraints",
+    "outcome": "CONTEXT.json with models, architecture, and testing strategy",
+    "tags": [
+      "planning",
+      "spec"
+    ]
+  },
+  {
+    "id": "TASK-002",
+    "action": "Create task breakdown",
+    "outcome": "TASKS.json with actionable items and dependencies",
+    "tags": [
+      "planning",
+      "spec"
+    ],
+    "depends_on": [
+      "TASK-SPEC-001"
+    ]
+  },
+  {
+    "id": "TASK-003",
+    "action": "Define database models",
+    "outcome": "SQLModel/Pydantic classes matching CONTEXT.json spec",
+    "tags": [
+      "backend",
+      "database"
+    ]
+  },
+  {
+    "id": "TASK-004",
+    "action": "Implement API endpoints",
+    "outcome": "FastAPI routes for CRUD operations",
+    "tags": [
+      "backend",
+      "api"
+    ],
+    "depends_on": [
+      "TASK-BACK-001"
+    ]
+  },
+  {
+    "id": "TASK-005",
+    "action": "Write backend tests",
+    "outcome": "pytest tests with >80% coverage",
+    "tags": [
+      "backend",
+      "testing"
+    ],
+    "depends_on": [
+      "TASK-BACK-002",
+      "TASK-003",
+      "TASK-004"
+    ]
+  },
+  {
+    "id": "TASK-006",
+    "action": "Create UI component library",
+    "outcome": "Reusable components following design tokens",
+    "tags": [
+      "frontend",
+      "ui",
+      "component"
+    ]
+  },
+  {
+    "id": "TASK-007",
+    "action": "Implement main views/pages",
+    "outcome": "Page components with routing",
+    "tags": [
+      "frontend",
+      "ui"
+    ],
+    "depends_on": [
+      "TASK-FRONT-001"
+    ]
+  },
+  {
+    "id": "TASK-008",
+    "action": "Connect frontend to API",
+    "outcome": "API integration with state management",
+    "tags": [
+      "frontend",
+      "integration"
+    ],
+    "depends_on": [
+      "TASK-FRONT-002",
+      "TASK-003",
+      "TASK-004",
+      "TASK-005"
+    ]
+  },
+  {
+    "id": "TASK-009",
+    "action": "Write frontend tests",
+    "outcome": "Component and integration tests",
+    "tags": [
+      "frontend",
+      "testing"
+    ],
+    "depends_on": [
+      "TASK-FRONT-003",
+      "TASK-003",
+      "TASK-004",
+      "TASK-005",
+      "TASK-006",
+      "TASK-007",
+      "TASK-008"
+    ]
+  },
+  {
+    "id": "TASK-010",
+    "action": "End-to-end integration testing",
+    "outcome": "E2E tests covering critical user flows",
+    "tags": [
+      "testing",
+      "e2e"
+    ],
+    "depends_on": [
+      "TASK-003",
+      "TASK-004",
+      "TASK-005",
+      "TASK-006",
+      "TASK-007",
+      "TASK-008",
+      "TASK-009"
+    ]
+  },
+  {
+    "id": "TASK-011",
+    "action": "Configure deployment",
+    "outcome": "Deployment scripts and documentation",
+    "tags": [
+      "devops",
+      "deployment"
+    ],
+    "depends_on": [
+      "TASK-005",
+      "TASK-009",
+      "TASK-010"
+    ]
+  }
+]

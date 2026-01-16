@@ -1,0 +1,34 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "qa_config.json",
+    "description": "QA verification configuration for Ralph Wiggum Loop",
+    "layers": {
+        "test_existence": true,
+        "test_execution": true,
+        "visual_semantic": true
+    },
+    "max_self_heal_attempts": 2,
+    "visual_check_model": "gemini-2.0-flash",
+    "test_directory": ".",
+    "test_patterns": {
+        "frontend": [
+            "*.test.ts",
+            "*.test.tsx",
+            "*.spec.ts",
+            "*.spec.tsx"
+        ],
+        "backend": [
+            "*_test.py",
+            "test_*.py"
+        ],
+        "component": [
+            "*.test.tsx",
+            "*.spec.tsx"
+        ]
+    },
+    "test_commands": {
+        "frontend": "npm test -- --run",
+        "backend": "python -m pytest --tb=short -q",
+        "default": "npm test -- --run"
+    }
+}

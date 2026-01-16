@@ -27,7 +27,45 @@ amend [file]  → Open Phase 5 to modify a locked artifact
 ## Protocol
 
 ### 1. Phased Interactive Interview
-Execute exactly 5 phases, 2-3 questions maximum per interaction:
+Execute exactly 6 phases, 2-3 questions maximum per interaction:
+
+**Phase 0: Strategic Intent (MANDATORY — DO NOT SKIP)**
+
+> [!CAUTION]
+> **FEASIBILITY ≠ STRATEGY**
+> The easiest approach to build is often NOT the best approach for the user's actual goal.
+> You MUST surface trade-offs and get explicit user buy-in before proceeding.
+
+Before defining ANY technical artifacts, answer:
+
+1. **User's True Goal**: What outcome does the user want in the REAL WORLD?
+   - Not "build an app" but the actual life/business outcome
+   - Example: "Find high-impact volunteer opportunities that strengthen college applications"
+
+2. **Success Metric**: How will the user know this WORKED?
+   - Must be measurable and tied to real-world outcome
+   - Bad: "The app runs without errors"
+   - Good: "Found 3 opportunities I actually applied to and got accepted"
+
+3. **Strategic Options**: Present 2-3 fundamentally different approaches:
+   ```
+   Option A: [Approach] — [Pros] — [Cons]
+   Option B: [Approach] — [Pros] — [Cons]  
+   Option C: [Approach] — [Pros] — [Cons]
+   ```
+
+4. **Trade-off Discussion**: For each option, explicitly state:
+   - What is sacrificed?
+   - What is the risk of choosing this path?
+   - What would make this option the wrong choice?
+
+5. **User Decision Point**: 
+   - **Ask**: "Which strategic approach should we take? I will NOT proceed until you explicitly choose."
+   - Document the user's choice and reasoning in `strategic_intent.json`
+
+*Transition Rule:* Do not advance to Phase 1 until `strategic_intent` is ✅.
+
+---
 
 **Phase 1: High-Level Foundation**
 - Problem statement and success metrics
@@ -85,6 +123,15 @@ Execute exactly 5 phases, 2-3 questions maximum per interaction:
 
 **Phase 4: Validation & Lock**
 - Coverage review against checklist
+- **Strategic Reasonableness Check (MANDATORY)**:
+  > [!WARNING]
+  > Before locking, you MUST ask yourself:
+  > 1. Does the spec we're about to lock actually achieve the user's stated REAL-WORLD goal from Phase 0?
+  > 2. If the user's goal was "find high-impact opportunities," did we build "research & curate" or just "scrape & dump"?
+  > 3. Is there a significant gap between what the user WANTED and what the spec DELIVERS?
+  > 
+  > If there is a gap, you MUST surface it:
+  > **Ask**: "Before I lock this spec, I want to confirm: Your goal was [X]. This spec delivers [Y]. Is this acceptable, or should we revisit the approach?"
 - Final confirmations
 - **Lock**: Generate `READY_FOR_AGENT.md`
 
@@ -129,6 +176,7 @@ On `extend`, update `max_exchanges` field in `interview_state.json`.
 ```
 specs/
 ├── interview_state.json     # Live progress
+├── strategic_intent.json    # Phase 0 decisions (NEW)
 ├── idea.json               # High-level contract
 ├── CONTEXT.json            # Engineering context  
 ├── TASKS.json              # Machine blueprint
@@ -160,6 +208,7 @@ specs/
   "status": "in_progress|blocked|complete|error",
   "error_reason": null,
   "coverage": {
+    "strategic_intent": "✅|⬜",
     "goals": "✅|⬜|N/A",
     "personas": "✅|⬜|N/A",
     "flows": "✅|⬜|N/A",
@@ -171,13 +220,57 @@ specs/
     "nfr": "✅|⬜|N/A",
     "recoverability": "✅|⬜|N/A",
     "deployment": "✅|⬜|N/A",
-    "guardrails": "✅|⬜|N/A"
+    "guardrails": "✅|⬜|N/A",
+    "strategic_reasonableness": "✅|⬜"
   },
   "gaps": [],
   "history": [
     {"exchange": 1, "phase": "string", "summary": "string"}
   ],
   "version": "1.0"
+}
+```
+
+---
+
+**strategic_intent.json** (Phase 0 Output)
+```json
+{
+  "version": "1.0",
+  "real_world_goal": {
+    "description": "What the user actually wants to achieve in their life/business",
+    "example": "Find volunteer opportunities that strengthen pre-vet college applications"
+  },
+  "success_metric": {
+    "description": "How the user will know this WORKED",
+    "measurable_outcome": "Found and applied to 3+ high-impact opportunities",
+    "not_acceptable": "The scraper ran without errors"
+  },
+  "strategic_options_considered": [
+    {
+      "id": "A",
+      "approach": "Scrape listings → LLM filter post-hoc",
+      "pros": "Easy to build, many data sources",
+      "cons": "Low precision, garbage-in-garbage-out",
+      "sacrifice": "Quality of matches"
+    },
+    {
+      "id": "B", 
+      "approach": "Profile-driven search queries → curated results",
+      "pros": "Higher precision, targeted",
+      "cons": "Harder to build search layer",
+      "sacrifice": "Breadth of coverage"
+    }
+  ],
+  "chosen_approach": {
+    "id": "B",
+    "user_reasoning": "I'd rather have 5 great matches than 500 mediocre ones",
+    "confirmed_at": "2024-01-15T10:30:00Z"
+  },
+  "strategic_risks_acknowledged": [
+    "May miss some opportunities from sources we don't search",
+    "Requires more upfront work to build search intelligence"
+  ]
 }
 ```
 
