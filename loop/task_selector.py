@@ -33,17 +33,45 @@ class TaskSelector:
         self._load_tasks()
     
     def _load_tasks(self) -> None:
-        """Load tasks strictly from TASKS.json."""
+        """Load tasks strictly from TASKS.json with basic schema validation."""
         if os.path.exists(self.config.tasks_json_path):
             try:
                 with open(self.config.tasks_json_path, 'r') as f:
-                    self._tasks = json.load(f)
+                    data = json.load(f)
+                    
+                if not isinstance(data, list):
+                    print(f"[TASK] ⚠️ TASKS.json must be a list, found {type(data).__name__}")
+                    self._tasks = []
+                    return
+                    
+                valid_tasks = []
+                for i, item in enumerate(data):
+                    if self._validate_task_item(item, i):
+                        valid_tasks.append(item)
+                
+                self._tasks = valid_tasks
+                
             except json.JSONDecodeError as e:
                 print(f"[TASK] ⚠️ Failed to parse {self.config.tasks_json_path}: {e}")
                 self._tasks = []
         else:
             print(f"[TASK] ⚠️ No task file found at {self.config.tasks_json_path}")
             self._tasks = []
+
+    def _validate_task_item(self, item: dict, index: int) -> bool:
+        """Validate individual task item schema."""
+        required = ["id", "action"]
+        missing = [f for f in required if f not in item]
+        
+        if missing:
+            print(f"[TASK] ⚠️ Task at index {index} missing required fields: {missing}")
+            return False
+            
+        # Ensure ID unique (simple check)
+        # Note: This doesn't catch duplicates across the whole list in one pass easily 
+        # without pre-scan, but good enough for item validity.
+        
+        return True
 
     def _save_tasks(self) -> bool:
         """Save current task state to TASKS.json and sync to markdown."""

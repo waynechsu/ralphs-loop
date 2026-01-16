@@ -93,7 +93,32 @@ The codebase is organized into composable packages:
 | `/ux` | UX Designer | `UI_SPEC.json`, `BRAND_BOOK.md` |
 | `/ux_validation` | UX Validator | `UX_VALIDATION_REPORT.md` |
 | `/ralph_mode` | Task Executor | Implements tasks from TASKS.json |
+| `/ralph_mode` | Task Executor | Implements tasks from TASKS.json |
 
+### Workflow Triggers
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Agent
+    participant FileSys as .agent/
+
+    User->>Agent: /spec "Build a Flight Tracker"
+    Agent->>FileSys: Generates TASKS.json & CONTEXT.json
+    
+    User->>Agent: /ux "Design a Flight Tracker"
+    Agent->>FileSys: Reads CONTEXT.json
+    Agent->>FileSys: Generates UI_SPEC.json & BRAND_BOOK.md
+    
+    User->>Agent: /ralph_mode
+    Agent->>FileSys: Reads all specs
+    loop Execution Loop
+        Agent->>Agent: Picks Next Task
+        Agent->>Agent: Implements Code
+        Agent->>Agent: Runs QA
+        Agent->>FileSys: Updates task.md [x]
+    end
+```
 ## 🚀 Getting Started
 
 ### Prerequisites

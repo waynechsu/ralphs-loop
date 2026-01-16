@@ -100,5 +100,34 @@ class TestE2EFlow(unittest.TestCase):
         # This is placeholder as ProgressMonitor implementation varies
         assert monitor is not None
 
+    @patch('loop.task_selector.TaskSelector._save_tasks')
+    def test_dependency_failure_handling(self, mock_save):
+        """Test 3.4: Verify cascading failure handling."""
+        config = LoopConfig(tasks_json_path="mock.json", task_md_path="mock.md")
+        selector = TaskSelector(config=config)
+        
+        # Inject mock manual tasks
+        selector._tasks = [
+            {"id": "T1", "status": "failed", "failure_reason": "Test Failure"},
+            {"id": "T2", "status": "pending", "depends_on": ["T1"]}
+        ]
+        
+        # Verify T2 is blocked
+        next_task = selector.get_next()
+        self.assertIsNone(next_task)
+
+    def test_context_rotation_logic(self):
+        """Test 3.6: Verify context rotation threshold."""
+        from loop.reset_handler import ResetHandler
+        
+        mock_cdp = MagicMock()
+        handler = ResetHandler(mock_cdp, threshold=5)
+        
+        # Not rotated yet
+        self.assertFalse(handler.should_rotate(3))
+        
+        # Threshold met
+        self.assertTrue(handler.should_rotate(5))
+
 if __name__ == '__main__':
     unittest.main()

@@ -243,4 +243,28 @@ To ensure all future apps have testing built-in, the following changes were made
 1. **Update template schemas** — Add `field_requirements` and `naming_enforcement` to the spec format
 2. **Patch ralph_mode.md** — Add steps 2 and 4 (spec check, validation)
 3. **Enhance wiggum_driver.py** — Inject model field requirements into prompts
-4. **Test on a new project** — Create a fresh spec and verify field-level traceability works
+
+---
+
+## V1 Finalization Status (2026-01-16)
+
+The following improvements were implemented to finalize V1:
+
+### 1. Robustness
+- **Validation**: `TaskSelector` now validates `TASKS.json` schema on load.
+- **Error Handling**: `wiggum_driver.py` includes robust retries for CDP connections.
+
+### 2. QA Depth
+- **Aggregation**: `qa_verification.py` aggregates all checks into `.agent/qa_report.json`.
+- **Visual Checks**: `qa/visual_checker.py` now includes strict rule-based checks (PNG header, size) before LLM calls.
+
+### 3. Testing
+- **E2E**: Expanded `tests/test_e2e_flow.py` with dependency handling and context rotation scenarios.
+- **CI**: Configured GitHub Actions to archive QA reports.
+
+### 4. Metrics
+- **Performance**: `ProgressMonitor` now logs task duration to `.agent/metrics.json`.
+
+### 5. Documentation
+- **Workflow**: Added Mermaid sequence diagram for triggers to `README.md`.
+

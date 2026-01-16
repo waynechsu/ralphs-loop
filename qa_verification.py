@@ -105,7 +105,9 @@ class QAVerifier:
         import os
         from datetime import datetime
         
-        report_path = os.path.join(base_path, ".agent", "qa_report.json")
+        dir_path = os.path.join(base_path, ".agent")
+        os.makedirs(dir_path, exist_ok=True)
+        report_path = os.path.join(dir_path, "qa_report.json")
         
         report_entry = {
             "task_id": task.get("id"),
@@ -125,13 +127,13 @@ class QAVerifier:
         try:
             reports = []
             if os.path.exists(report_path):
-                with open(report_path, 'r') as f:
-                    try:
+                try:
+                    with open(report_path, 'r') as f:
                         reports = json.load(f)
                         if not isinstance(reports, list):
                             reports = []
-                    except json.JSONDecodeError:
-                        pass
+                except json.JSONDecodeError:
+                    pass
             
             # Append new report
             reports.append(report_entry)

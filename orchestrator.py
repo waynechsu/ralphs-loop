@@ -490,17 +490,38 @@ if __name__ == "__main__":
         sys.exit(0)
 
     if len(sys.argv) < 2:
-        print("Usage: python orchestrator.py '<goal description>'")
-        print("Example: python orchestrator.py 'Build a todo app with React and FastAPI'")
+        print("Usage: python orchestrator.py '<goal>' OR python orchestrator.py --batch <file>")
         sys.exit(1)
     
-    goal = " ".join(sys.argv[1:])
+    tasks = []
     
-    orch = Orchestrator()
-    tasks = orch.generate_tasks(goal)
+    if sys.argv[1] == "--batch":
+        if len(sys.argv) < 3:
+            print("Error: --batch requires a filename")
+            sys.exit(1)
+        
+        batch_file = sys.argv[2]
+        if not os.path.exists(batch_file):
+            print(f"Error: File {batch_file} not found")
+            sys.exit(1)
+            
+        print(f"[ORCH] 📚 Processing batch file: {batch_file}")
+        with open(batch_file, 'r') as f:
+            goals = [line.strip() for line in f if line.strip() and not line.startswith('#')]
+            
+        orch = Orchestrator()
+        for i, goal in enumerate(goals):
+            print(f"\n[ORCH] --- Processing Goal {i+1}/{len(goals)} ---")
+            goal_tasks = orch.generate_tasks(goal)
+            tasks.extend(goal_tasks)
+            
+    else:
+        goal = " ".join(sys.argv[1:])
+        orch = Orchestrator()
+        tasks = orch.generate_tasks(goal)
     
     print("\n" + "=" * 50)
-    print("Generated Tasks:")
+    print(f"Total Generated Tasks: {len(tasks)}")
     print("=" * 50)
     for task in tasks:
         deps = f" (depends: {', '.join(task.depends_on)})" if task.depends_on else ""

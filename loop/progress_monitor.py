@@ -91,11 +91,46 @@ class ProgressMonitor:
             if match:
                 # Add timestamp if enabled and not present
                 self._ensure_timestamp(task_id, content, match)
+                
+                # Log metrics
+                self._log_metrics(task_id)
                 return True
                 
             return False
         except Exception:
             return False
+
+    def _log_metrics(self, task_id: str) -> None:
+        """Log task duration metrics."""
+        import json
+        
+        duration = self.get_elapsed_time()
+        metrics_path = os.path.join(os.path.dirname(self.task_md_path), "metrics.json")
+        
+        entry = {
+            "task_id": task_id,
+            "duration_seconds": duration,
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+        }
+        
+        try:
+            metrics = []
+            if os.path.exists(metrics_path):
+                # Check if we already logged this task recently to avoid dupes from polling
+                # A simple way is to check if TTA < 60s
+                with open(metrics_path, 'r') as f:
+                    try:
+                        metrics = json.load(f)
+                    except json.JSONDecodeError:
+                        pass
+                        
+            # Prevent duplicate logs for same task completion event (simple de-dupe)
+            if not any(m["task_id"] == task_id and m["duration_seconds"] == duration for m in metrics):
+                metrics.append(entry)
+                with open(metrics_path, 'w') as f:
+                    json.dump(metrics, f, indent=2)
+        except Exception as e:
+            print(f"[POLL] ⚠️ Failed to log metrics: {e}")
 
     def _ensure_timestamp(self, task_id: str, content: str, match: re.Match) -> None:
         """Add timestamp to completed task if missing."""

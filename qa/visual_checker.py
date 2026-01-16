@@ -195,10 +195,11 @@ def check_basic_rules(screenshot_base64: str) -> tuple[bool, list[str]]:
     if len(screenshot_base64) < 1000:
         issues.append("Screenshot too small (< 1KB), likely error page")
         
-    # Check for specific "error" keywords in raw data is hard without OCR,
-    # but we can check if it's solid color if we decode it (requires PIL/Pillow).
-    # For now, we stick to size checks to avoid dependencies.
-    
+    # Check for valid PNG header (simple string check on base64 prefix)
+    # PNG base64 usually starts with iVBORw0KGgo
+    if not screenshot_base64.startswith("iVBORw0KGgo"):
+        issues.append("Invalid PNG header (does not start with 'iVBORw0KGgo')")
+
     return len(issues) == 0, issues
 
 
