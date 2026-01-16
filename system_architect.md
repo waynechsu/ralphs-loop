@@ -53,12 +53,23 @@ Execute exactly 5 phases, 2-3 questions maximum per interaction:
     - If external APIs/scraping: MUST include health probe script for monitoring.
   - "The Golden Path" test case definition
   - **Test Case Enumeration**: List specific scenarios (Happy Path, Edge Cases, Error States) that MUST pass.
+  - **Semantic Verification (Crushed-User Rule)**:
+    - **Data Audit**: MUST include scripts to verify that critical fields are POPULATED (not just present). "Code runs but db is empty" = FAILURE.
+    - **Visual Proof**: UI features are considered "Incomplete" until a screenshot confirms the data is visible to the human eye.
+    - **Negative Testing**: Confirm that filters actually *filter* (results count changes).
 - UX/UI flows and non-functional requirements
-- *Transition Rule:* Do not advance until `data`, `api`, `test_cases` and `ui_completeness` are ✅ or N/A.
+- *Transition Rule:* Do not advance until `data`, `api`, `test_cases`, `ui_completeness` and `semantic_verification` are ✅ or N/A.
+
+**Phase 2B: UI/UX Specification (MANDATORY)**
+- **Goal**: Define the visual and functional interface contract.
+- **Artifacts**: `UI_SPEC.json` (Required), `BRAND_BOOK.md` (Optional).
+- **Execution**: Run the `/ux` agent if complex, or define inline.
+- **Requirement**: `UI_SPEC.json` must list every page, component, and user interaction.
+- *Transition Rule:* Do not advance until `ui_spec` is ✅.
 
 **Phase 3: Risk & Resilience**
 - Edge cases, error handling, failure modes
-- **Recoverability**: How to detect/fix state corruption? (Store in `recoverability_plan`)
+- **Recoverability**: How to detect/fetch state corruption? (Store in `recoverability_plan`)
 - Architectural trade-offs and blast shields
 
 **Phase 3B: Brand & Visual Identity (Optional)**
@@ -121,6 +132,7 @@ specs/
 ├── idea.json               # High-level contract
 ├── CONTEXT.json            # Engineering context  
 ├── TASKS.json              # Machine blueprint
+├── UI_SPEC.json            # Visual/Functional Interface Contract
 ├── glossary.json           # Domain terms
 ├── guardrails.json         # Negative knowledge
 ├── BRAND_BOOK.md           # Brand guide (optional, if brand phase completed)
@@ -154,6 +166,7 @@ specs/
     "data": "✅|⬜|N/A",
     "api": "✅|⬜|N/A",
     "test_cases": "✅|⬜|N/A",
+    "ui_spec": "✅|⬜",
     "brand": "✅|⬜|N/A",
     "nfr": "✅|⬜|N/A",
     "recoverability": "✅|⬜|N/A",
@@ -238,7 +251,8 @@ specs/
       {"id": "BS-001", "boundary": "string", "rule": "string", "enforcement_level": "warn|block|abort"}
     ]
   },
-  "guardrails_ref": "guardrails.json"
+  "guardrails_ref": "guardrails.json",
+  "ui_spec_ref": "UI_SPEC.json"
 }
 ```
 
@@ -329,11 +343,15 @@ Primary control file: TASKS.json (execute in listed order)
 
 ## Pre-Execution Checklist
 - [ ] All JSON files validated
+- [ ] **UI_SPEC.json validated** (Must exist and match schema)
 - [ ] Git commit: "Spec locked v1.0"
 
 ## Post-Implementation Checklist (MANDATORY before declaring DONE)
 - [ ] All unit tests pass (`pytest` or equivalent)
 - [ ] All integration tests pass
+- [ ] **SV-003 (UI Audit)**: UI implementation visually matches UI_SPEC.json wireframes/requirements
+- [ ] **SV-001 (Data Audit)**: Verification script confirms NO critical fields (Cost, Grades, Dates) are 100% null.
+- [ ] **SV-002**: Edge case input (empty search, weird chars) handled gracefully.
 - [ ] **UAT-001**: All UI sections mentioned in spec are visible and functional
 - [ ] **UAT-002**: All links are clickable and lead to valid destinations
 - [ ] **UAT-003**: No technical errors (stack traces, validation errors) visible to user

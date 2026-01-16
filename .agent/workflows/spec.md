@@ -13,5 +13,6 @@ description: Start the Specification Architect Interview
 
 > **Reminders**:
 > - Enforce "Phase 2: QA Strategy" (Mandatory).
+> - Enforce "Phase 2B: UI/UX Specification" (Mandatory) — run `/ux` after spec lock.
 > - Enforce "Phase 4: Validation".
 > - SPEC = REQUIREMENT.

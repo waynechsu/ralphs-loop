@@ -33,6 +33,18 @@ The "Ralph Wiggum Loop" is a design pattern for autonomous agents:
 | `TASKS.json` | Task list with `field_requirements` for each model task |
 | `CONTEXT.json` | Model schemas, `naming_enforcement`, architecture rules |
 | `ralph_mode.md` | Workflow with mandatory spec validation steps |
+| `spec.md` | Workflow to run System Architect interview |
+| `ux.md` | Workflow for UX Designer agent (UI_SPEC.json) |
+| `ux_validation.md` | Workflow for UX Validation audits |
+
+### Agent Workflows
+
+| Command | Agent | Output |
+|---------|-------|--------|
+| `/spec` | System Architect | `CONTEXT.json`, `TASKS.json` |
+| `/ux` | UX Designer | `UI_SPEC.json`, `BRAND_BOOK.md` |
+| `/ux_validation` | UX Validator | `UX_VALIDATION_REPORT.md` |
+| `/ralph_mode` | Task Executor | Implements tasks from TASKS.json |
 
 ## 🚀 Getting Started
 
