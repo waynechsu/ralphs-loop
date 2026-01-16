@@ -375,10 +375,120 @@ class Orchestrator:
         return tasks
 
 
+    def execute_plan(self, tasks: list[Task], runner_func, max_workers: int = 1) -> dict[str, str]:
+        """
+        Execute tasks respecting dependencies, with parallel execution for independent tasks.
+        
+        Args:
+            tasks: List of Task objects
+            runner_func: Function that takes a Task and returns outcome string.
+                        Should be thread-safe if max_workers > 1.
+            max_workers: Number of parallel threads
+            
+        Returns:
+            Dict of {task_id: outcome_status}
+        """
+        import concurrent.futures
+        import time
+        
+        results = {}
+        completed = set()
+        futures = {}
+        
+        print(f"[ORCH] 🚀 Starting execution with {max_workers} threads")
+        
+        start_time = time.time()
+        
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            while len(completed) < len(tasks):
+                # Find runnable tasks
+                runnable = []
+                for task in tasks:
+                    if task.id in completed or task.id in futures:
+                        continue
+                    
+                    # Check dependencies
+                    deps_met = all(dep in completed for dep in task.depends_on)
+                    if deps_met:
+                        runnable.append(task)
+                
+                # Submit runnable tasks
+                for task in runnable:
+                    print(f"[ORCH] ▶️ Submitting task {task.id}: {task.action}")
+                    futures[task.id] = executor.submit(runner_func, task)
+                
+                if not futures:
+                    if len(completed) < len(tasks):
+                        print("[ORCH] ⚠️ Deadlock detected! Dependencies might be cyclic or invalid.")
+                        break
+                
+                # Wait for next completion
+                done, _ = concurrent.futures.wait(
+                    futures.values(),
+                    return_when=concurrent.futures.FIRST_COMPLETED
+                )
+                
+                # Process results
+                for task_id, future in list(futures.items()):
+                    if future in done:
+                        try:
+                            result = future.result()
+                            print(f"[ORCH] ✅ Task {task_id} completed")
+                            results[task_id] = "success"
+                            completed.add(task_id)
+                        except Exception as e:
+                            print(f"[ORCH] ❌ Task {task_id} failed: {e}")
+                            results[task_id] = "failed"
+                            # For now, we don't abort everything, but dependents will be blocked
+                            # marking as 'completed' (but failed) so we don't loop forever?
+                            # Or better: don't add to 'completed', so dependents stay blocked.
+                            pass 
+                        
+                        del futures[task_id]
+        
+        duration = time.time() - start_time
+        success_count = sum(1 for status in results.values() if status == "success")
+        
+        metrics = {
+            "total_tasks": len(tasks),
+            "completed": len(completed),
+            "success": success_count,
+            "failed": len(results) - success_count,
+            "duration_seconds": round(duration, 2),
+            "results": results
+        }
+        
+        print(f"[ORCH] 🏁 Batch execution finished in {metrics['duration_seconds']}s")
+        print(f"[ORCH]    Success: {metrics['success']}/{metrics['total_tasks']}")
+        
+        return metrics
+
 # CLI interface
 if __name__ == "__main__":
     import sys
     
+    if len(sys.argv) < 2:
+        # Default behavior: Print usage
+        pass 
+    elif sys.argv[1] == "--exec-test":
+        # Simualtion test
+        print("Running simulation test...")
+        orch = Orchestrator()
+        
+        # Create mock tasks
+        t1 = Task("T1", "Setup", "Done")
+        t2 = Task("T2", "Build backend", "Done", depends_on=["T1"])
+        t3 = Task("T3", "Build frontend", "Done", depends_on=["T1"])
+        t4 = Task("T4", "Integration", "Done", depends_on=["T2", "T3"])
+        
+        def mock_runner(t):
+            import time, random
+            time.sleep(random.uniform(0.5, 1.5))
+            return "OK"
+            
+        orch.execute_plan([t1, t2, t3, t4], mock_runner, max_workers=2)
+        sys.exit(0)
+
     if len(sys.argv) < 2:
         print("Usage: python orchestrator.py '<goal description>'")
         print("Example: python orchestrator.py 'Build a todo app with React and FastAPI'")

@@ -180,11 +180,11 @@ specs/
 
 | # | Improvement | Effort | Impact | Status |
 |---|-------------|--------|--------|--------|
-| 1 | Add `field_requirements` to TASKS.json schema | Low | High | ✅ Applied to `system_architect.md` |
-| 2 | Update `ralph_mode.md` with validation step | Low | High | ✅ Applied |
-| 3 | Add spec field injection to wiggum_driver.py | Medium | High | ✅ Applied |
-| 4 | Add `naming_enforcement` to CONTEXT.json schema | Low | Medium | ✅ Applied to `system_architect.md` |
-| 5 | Add Phase 5B post-implementation sync | Medium | Medium | ✅ Applied to `system_architect.md` |
+| 1 | Add `field_requirements` to TASKS.json schema | Low | High | ✅ Solved (task_selector.py) |
+| 2 | Update `ralph_mode.md` with validation step | Low | High | ✅ Solved |
+| 3 | Add spec field injection to wiggum_driver.py | Medium | High | ✅ Solved (wiggum_driver.py) |
+| 4 | Add `naming_enforcement` to CONTEXT.json schema | Low | Medium | ✅ Solved (spec_validator.py) |
+| 5 | Add Phase 5B post-implementation sync | Medium | Medium | 🚧 Deferred |
 
 ---
 

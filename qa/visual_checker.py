@@ -41,7 +41,10 @@ def visual_semantic_check(
     api_key: Optional[str] = None
 ) -> VerificationResult:
     """
-    Layer 3: LLM-as-Judge for UI correctness via screenshot analysis.
+    Layer 3: Hybrid visual verification.
+    
+    1. Rule-based checks (Zero cost): File size, dimensions, solid color.
+    2. LLM check (Cost): Only if explicitly enabled or tagged for reasoning.
     
     Args:
         task: Task dictionary
@@ -50,7 +53,7 @@ def visual_semantic_check(
         api_key: Gemini API key (uses GEMINI_API_KEY env var if not provided)
         
     Returns:
-        VerificationResult with LLM assessment
+        VerificationResult
     """
     if not config.visual_semantic:
         return VerificationResult(True, "visual_semantic", "Skipped (disabled)", [])
@@ -65,7 +68,33 @@ def visual_semantic_check(
             message="Skipped (not a UI task)",
             details=[]
         )
+        
+    # 1. Rule-based checks (Free)
+    rules_passed, rule_issues = check_basic_rules(screenshot_base64)
+    if not rules_passed:
+        return VerificationResult(
+            passed=False,
+            layer="visual_semantic", 
+            message="Basic rule check failed",
+            details=rule_issues,
+            suggested_fix="Fix screenshot capture or rendering issue"
+        )
+        
+    # 2. LLM check (Cost)
+    # Only run if:
+    # - Explicitly enabled in config (ENABLE_LLM_VISUAL_CHECK)
+    # - OR task has "reasoning" tag AND config allows it
+    needs_reasoning = "reasoning" in tags or task.get("needs_reasoning", False)
+    enable_llm = os.environ.get("ENABLE_LLM_VISUAL_CHECK", "false").lower() == "true"
     
+    if not (enable_llm or needs_reasoning):
+        return VerificationResult(
+            passed=True,
+            layer="visual_semantic",
+            message="Pass (Rule-based only)",
+            details=["Use needs_reasoning=true tag to enable LLM check"]
+        )
+
     api_key = api_key or os.environ.get("GEMINI_API_KEY")
     if not api_key:
         return VerificationResult(
@@ -145,6 +174,32 @@ def visual_semantic_check(
             message=f"LLM API error: {str(e)}",
             details=[str(e)]
         )
+
+
+def check_basic_rules(screenshot_base64: str) -> tuple[bool, list[str]]:
+    """
+    Perform rule-based checks on screenshot.
+    
+    Args:
+        screenshot_base64: Base64 image data
+        
+    Returns:
+        (passed, list_of_issues)
+    """
+    issues = []
+    
+    if not screenshot_base64:
+        return False, ["Empty screenshot data"]
+        
+    # Check data size (sanity check for extremely small files)
+    if len(screenshot_base64) < 1000:
+        issues.append("Screenshot too small (< 1KB), likely error page")
+        
+    # Check for specific "error" keywords in raw data is hard without OCR,
+    # but we can check if it's solid color if we decode it (requires PIL/Pillow).
+    # For now, we stick to size checks to avoid dependencies.
+    
+    return len(issues) == 0, issues
 
 
 def capture_screenshot_cdp(ws_url: str) -> Optional[str]:

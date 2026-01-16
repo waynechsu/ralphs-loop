@@ -22,12 +22,18 @@ def test_task_selector_real_files():
     if not os.path.exists(".agent/TASKS.json"):
         pytest.skip("No .agent/TASKS.json found")
         
-    selector = TaskSelector(
+    from loop.config import LoopConfig
+    
+    # Create config with explicit paths for testing
+    config = LoopConfig(
         tasks_json_path=".agent/TASKS.json",
         task_md_path=".agent/task.md"
     )
+        
+    selector = TaskSelector(config=config)
     
-    tasks = selector.parse_tasks()
+    # TaskSelector loads tasks on init
+    tasks = selector._tasks
     assert isinstance(tasks, list)
     assert len(tasks) > 0, "Should have parsed at least one task"
     

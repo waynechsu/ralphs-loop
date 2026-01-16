@@ -1,0 +1,24 @@
+[
+  {
+    "id": "TASK-SPEC-001",
+    "action": "Define project context and constraints",
+    "outcome": "CONTEXT.json with models, architecture, and testing strategy",
+    "tags": ["planning", "spec"]
+  },
+  {
+    "id": "TASK-BACK-001",
+    "action": "Define database models",
+    "outcome": "SQLModel classes in backend/models.py",
+    "tags": ["backend"],
+    "field_requirements": {
+      "User": ["id", "email", "hashed_password", "created_at"]
+    }
+  },
+  {
+    "id": "TASK-FRONT-001",
+    "action": "Create UI component library",
+    "outcome": "Reusable components in frontend/src/components",
+    "tags": ["frontend"],
+    "depends_on": ["TASK-SPEC-001"]
+  }
+]

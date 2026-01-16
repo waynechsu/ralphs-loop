@@ -9,6 +9,7 @@ Runs tests and parses output for pass/fail status.
 import re
 import shlex
 import subprocess
+import os
 from .config import QAConfig, VerificationResult, DEFAULT_TEST_COMMANDS
 
 
@@ -43,6 +44,12 @@ def run_tests(
     
     print(f"[QA] 🧪 Running tests: {cmd}")
     
+    # Inject mock environment variables
+    env = os.environ.copy()
+    if config.mock_dependencies:
+        env["MOCK_EXTERNAL_DEPENDENCIES"] = "true"
+        print("[QA]    Mocking enabled (MOCK_EXTERNAL_DEPENDENCIES=true)")
+    
     try:
         result = subprocess.run(
             shlex.split(cmd),
@@ -50,7 +57,8 @@ def run_tests(
             capture_output=True,
             text=True,
             timeout=120,  # 2 minute timeout
-            cwd=cwd
+            cwd=cwd,
+            env=env
         )
         
         output = result.stdout + result.stderr

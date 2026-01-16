@@ -21,29 +21,60 @@ The "Ralph Wiggum Loop" is a design pattern for autonomous agents:
 
 ## 🏗️ Architecture (V3 - Modular)
 
+```mermaid
+graph TD
+    User[User Goal] -->|Orchestrator| Plan[TASKS.json]
+    Plan --> Driver[Wiggum Driver]
+    
+    subgraph "Ralph Wiggum Loop"
+        Driver -->|Poll| Selector[Task Selector]
+        Selector -->|Next Task| Builder[Prompt Builder]
+        Builder -->|Inject| IDE[Antigravity IDE]
+        IDE -->|Action| App[App Implementation]
+        
+        App -.->|Verify| QA[QA Verifier]
+        QA -->|Unit Test| Layer1[Test Runner]
+        QA -->|Visual| Layer2[Visual Checker]
+        
+        QA -->|Result| Driver
+        IDE -->|Usage| Monitor[Progress Monitor]
+        Monitor -->|Complete| Driver
+        Driver -->|Rotate| Reset[Reset Handler]
+    end
+    
+    subgraph "Outputs"
+        Driver --> Log[errors.log]
+        Driver --> Metrics[LLM Counter]
+        QA --> Report[qa_report.json]
+    end
+```
+
 The codebase is organized into composable packages:
 
-```
-├── wiggum_driver.py      # Main orchestrator
+```text
+├── wiggum_driver.py      # Main orchestrator (Driver)
+├── orchestrator.py       # Plan generator (User Goal -> TASKS.json)
+├── test_runner.sh        # Local test executor
 ├── loop/                 # Core loop components
 │   ├── cdp_client.py     # Chrome DevTools Protocol communication
-│   ├── task_selector.py  # Task parsing and selection
-│   ├── task_parser.py    # JSON/Markdown task parsing
-│   ├── spec_validator.py # Spec compliance validation
-│   ├── prompt_builder.py # Context injection and prompts
-│   ├── progress_monitor.py # Completion polling
+│   ├── task_selector.py  # Task parsing and dependency management
+│   ├── task_parser.py    # JSON parsing and status tracking
+│   ├── prompt_builder.py # Context injection
+│   ├── progress_monitor.py # Completion polling & timestamping
 │   └── reset_handler.py  # Context rotation (blast shield)
 ├── qa/                   # QA verification layers
-│   ├── config.py         # QAConfig and VerificationResult
+│   ├── config.py         # QA Configuration
 │   ├── schema_checker.py # Layer 1: Test existence
-│   ├── test_runner.py    # Layer 2: Test execution
-│   └── visual_checker.py # Layer 3: LLM visual check
-├── qa_verification.py    # QA orchestrator
-├── tests/                # 56 unit tests
-└── .agent/               # Project specs
+│   ├── test_runner.py    # Layer 2: Test execution (supports mocks)
+│   └── visual_checker.py # Layer 3: Rule-based + Optional LLM check
+├── qa_verification.py    # QA orchestrator (Result Aggregator)
+├── tests/                # 56+ unit/integration tests
+└── .agent/               # Project specs & logs
     ├── TASKS.json        # Executable task list
     ├── CONTEXT.json      # Model schemas and rules
-    └── task.md           # Progress scoreboard
+    ├── task.md           # Progress scoreboard
+    ├── errors.log        # Driver error log
+    └── qa_report.json    # QA Verification Report
 ```
 
 ### Key Components
@@ -91,6 +122,16 @@ The codebase is organized into composable packages:
 3.  **Run the Driver**
     ```bash
     python3 wiggum_driver.py
+    ```
+
+    **Alternative: Generate Plans**
+    ```bash
+    python3 orchestrator.py "Build a todo app with React"
+    ```
+
+4.  **Run Tests**
+    ```bash
+    ./test_runner.sh all
     ```
 
 ### How the Driver Works

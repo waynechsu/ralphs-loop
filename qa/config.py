@@ -27,6 +27,7 @@ class QAConfig:
     max_self_heal_attempts: int = 2
     visual_check_model: str = "gemini-2.0-flash"
     test_directory: str = "."
+    mock_dependencies: bool = False
     
     @classmethod
     def from_context(cls, context_data: Optional[dict] = None) -> "QAConfig":
@@ -43,7 +44,8 @@ class QAConfig:
             visual_semantic=layers.get("visual_semantic", True),
             max_self_heal_attempts=qa_config.get("max_self_heal_attempts", 2),
             visual_check_model=qa_config.get("visual_check_model", "gemini-2.0-flash"),
-            test_directory=qa_config.get("test_directory", ".")
+            test_directory=qa_config.get("test_directory", "."),
+            mock_dependencies=qa_config.get("mock_dependencies", False)
         )
 
 

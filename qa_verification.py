@@ -83,11 +83,64 @@ class QAVerifier:
                 print(f"[QA]    {result3.message}")
                 
                 if not result3.passed:
-                    return False, results
+                    success = False
             else:
                 print("[QA]    Skipped (screenshot capture failed)")
+                
+        # Aggregate and save report
+        success = all(r.passed for r in results)
+        self.save_report(task, results, success, base_path)
         
-        return True, results
+        return success, results
+    
+    def save_report(
+        self, 
+        task: dict, 
+        results: list[VerificationResult], 
+        success: bool,
+        base_path: str
+    ) -> None:
+        """Save QA report to JSON."""
+        import json
+        import os
+        from datetime import datetime
+        
+        report_path = os.path.join(base_path, ".agent", "qa_report.json")
+        
+        report_entry = {
+            "task_id": task.get("id"),
+            "timestamp": datetime.now().isoformat(),
+            "overall_status": "passed" if success else "failed",
+            "layers": [
+                {
+                    "layer": r.layer,
+                    "passed": r.passed,
+                    "message": r.message,
+                    "details": r.details
+                }
+                for r in results
+            ]
+        }
+        
+        try:
+            reports = []
+            if os.path.exists(report_path):
+                with open(report_path, 'r') as f:
+                    try:
+                        reports = json.load(f)
+                        if not isinstance(reports, list):
+                            reports = []
+                    except json.JSONDecodeError:
+                        pass
+            
+            # Append new report
+            reports.append(report_entry)
+            
+            with open(report_path, 'w') as f:
+                json.dump(reports, f, indent=2)
+                
+        except Exception as e:
+            print(f"[QA] ⚠️ Failed to save report: {e}")
     
     def format_failure_prompt(self, results: list[VerificationResult]) -> str:
         """

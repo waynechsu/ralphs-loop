@@ -18,7 +18,7 @@ from .task_selector import TaskSelector
 from .prompt_builder import PromptBuilder
 from .progress_monitor import ProgressMonitor
 from .reset_handler import ResetHandler
-from .task_parser import parse_json_tasks, parse_markdown_tasks, get_completed_ids
+# from .task_parser import parse_json_tasks, parse_markdown_tasks, get_completed_ids (Deprecated)
 from .spec_validator import validate_spec, find_implemented_models
 
 __all__ = [

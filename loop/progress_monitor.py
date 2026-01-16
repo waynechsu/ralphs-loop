@@ -74,6 +74,7 @@ class ProgressMonitor:
             return 0
         return int(time.time() - self._start_time)
     
+    
     def _is_task_complete(self, task_id: str) -> bool:
         """Check if a specific task is marked complete."""
         if not os.path.exists(self.task_md_path):
@@ -85,6 +86,33 @@ class ProgressMonitor:
             
             # Check for [x] with this task ID
             pattern = rf'^\s*-\s*\[x\]\s*.*<!-- id:\s*{re.escape(task_id)}\s*-->'
-            return bool(re.search(pattern, content, re.MULTILINE | re.IGNORECASE))
+            match = re.search(pattern, content, re.MULTILINE | re.IGNORECASE)
+            
+            if match:
+                # Add timestamp if enabled and not present
+                self._ensure_timestamp(task_id, content, match)
+                return True
+                
+            return False
         except Exception:
             return False
+
+    def _ensure_timestamp(self, task_id: str, content: str, match: re.Match) -> None:
+        """Add timestamp to completed task if missing."""
+        line = match.group(0)
+        # Check if already has date-like string (simple heuristic)
+        if re.search(r'\d{4}-\d{2}-\d{2}', line):
+            return
+            
+        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        # Insert timestamp after [x]
+        new_line = re.sub(r'(\[x\])', f'\\1 *{timestamp}*', line)
+        
+        new_content = content.replace(line, new_line)
+        
+        try:
+            with open(self.task_md_path, 'w') as f:
+                f.write(new_content)
+            print(f"[POLL] 🕒 Added timestamp to task {task_id}")
+        except Exception as e:
+            print(f"[POLL] ⚠️ Failed to add timestamp: {e}")
