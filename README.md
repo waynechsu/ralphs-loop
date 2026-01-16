@@ -19,23 +19,40 @@ The "Ralph Wiggum Loop" is a design pattern for autonomous agents:
 > The driver now injects model requirements with enforcement language.
 > Agents that skip or rename fields without updating the spec have FAILED the task.
 
-## 🏗️ Architecture (V2)
+## 🏗️ Architecture (V3 - Modular)
 
-- **`wiggum_driver.py`**: The "Manager". Connects to Antigravity via CDP (Port 9000). Injects CONTEXT.json model requirements as MANDATORY contracts.
-- **`.agent/TASKS.json`**: **(Recommended)** The Executable Plan. Now supports `field_requirements` to specify mandatory model fields per task.
-- **`.agent/CONTEXT.json`**: **(Recommended)** The Rules. Defines models, naming enforcement, and "Blast Shield" rules.
-- **`.agent/task.md`**: The Scoreboard. Used by the agent to mark physical progress (`[x]`), synced automatically by the driver.
+The codebase is organized into composable packages:
 
-### Key Files
+```
+├── wiggum_driver.py      # Main orchestrator
+├── loop/                 # Core loop components
+│   ├── cdp_client.py     # Chrome DevTools Protocol communication
+│   ├── task_selector.py  # Task parsing and selection
+│   ├── task_parser.py    # JSON/Markdown task parsing
+│   ├── spec_validator.py # Spec compliance validation
+│   ├── prompt_builder.py # Context injection and prompts
+│   ├── progress_monitor.py # Completion polling
+│   └── reset_handler.py  # Context rotation (blast shield)
+├── qa/                   # QA verification layers
+│   ├── config.py         # QAConfig and VerificationResult
+│   ├── schema_checker.py # Layer 1: Test existence
+│   ├── test_runner.py    # Layer 2: Test execution
+│   └── visual_checker.py # Layer 3: LLM visual check
+├── qa_verification.py    # QA orchestrator
+├── tests/                # 56 unit tests
+└── .agent/               # Project specs
+    ├── TASKS.json        # Executable task list
+    ├── CONTEXT.json      # Model schemas and rules
+    └── task.md           # Progress scoreboard
+```
 
-| File | Purpose |
-|------|--------|
-| `TASKS.json` | Task list with `field_requirements` for each model task |
-| `CONTEXT.json` | Model schemas, `naming_enforcement`, architecture rules |
-| `ralph_mode.md` | Workflow with mandatory spec validation steps |
-| `spec.md` | Workflow to run System Architect interview |
-| `ux.md` | Workflow for UX Designer agent (UI_SPEC.json) |
-| `ux_validation.md` | Workflow for UX Validation audits |
+### Key Components
+
+| Package | Purpose |
+|---------|---------|
+| `loop/` | Modular components for autonomous agent execution |
+| `qa/` | 3-layer verification (test existence → execution → visual) |
+| `tests/` | 56 pytest tests covering core logic |
 
 ### Agent Workflows
 
