@@ -39,8 +39,13 @@ Execute exactly 5 phases, 2-3 questions maximum per interaction:
 **Phase 2: Technical Core**
 - Tech stack and data models (JSON Schema)
 - API surfaces (OpenAPI-style)
+- **Product Completeness Constraint (MANDATORY)**:
+  - **Gui-First Rule**: Product MUST be a complete application (Web/Mobile/Desktop).
+  - **No Half-Baked CLI**: Terminal/CLI-only deliverables are FORBIDDEN unless explicitly requested for developer tools.
+  - **User Interface**: explicit UI mockups/flows must be defined.
 - **Define QA Strategy (Mandatory)**:
   - Unit Test Framework (e.g., Vitest, Pytest) - MUST specify required test files (e.g. `tests/test_auth.ts`).
+  - **Execution Verification**: Specs must include steps to VERIFY that tests actually run and pass (not just exist).
   - **Unit Tests**: MUST cover core logic, data models, and validation.
   - **Integration/E2E Tests**: MUST test full pipeline flows with mock data.
   - **Reliability Tests**:
@@ -49,7 +54,7 @@ Execute exactly 5 phases, 2-3 questions maximum per interaction:
   - "The Golden Path" test case definition
   - **Test Case Enumeration**: List specific scenarios (Happy Path, Edge Cases, Error States) that MUST pass.
 - UX/UI flows and non-functional requirements
-- *Transition Rule:* Do not advance until `data`, `api` and `test_cases` are ✅ or N/A.
+- *Transition Rule:* Do not advance until `data`, `api`, `test_cases` and `ui_completeness` are ✅ or N/A.
 
 **Phase 3: Risk & Resilience**
 - Edge cases, error handling, failure modes
@@ -88,6 +93,7 @@ Execute exactly 5 phases, 2-3 questions maximum per interaction:
 - **Output**: `USER_GUIDE.md`
 - **Content**:
   - Feature walk-through (Screenshots optional but recommended).
+  - **GUI Focus**: Instructions must generally focus on the App/Web Interface, NOT terminal commands (unless dev tool).
   - Explanation of every button/input field.
   - "How to" for common workflows (e.g. "How to track a flight").
   - Troubleshooting / FAQ.
@@ -194,12 +200,24 @@ specs/
       "reliability": "MUST test fallback behavior for LLM/external APIs",
       "monitoring": "MUST include health probe for external dependencies"
     },
+    "user_acceptance_tests": {
+      "description": "Browser-based verification that features work FROM THE USER'S PERSPECTIVE. No feature is 'done' until UAT passes.",
+      "mandatory_checks": [
+        "All links are clickable and lead to valid destinations",
+        "No technical errors (stack traces, validation errors) visible to user",
+        "Search/filter inputs produce expected filtered results",
+        "Data displayed matches what was saved/scraped",
+        "All UI sections mentioned in spec are visible and functional"
+      ],
+      "verification_method": "browser_demo",
+      "failure_policy": "Feature marked INCOMPLETE until UAT passes"
+    },
     "test_cases": [
       {
         "id": "TC-001",
         "name": "Verify Valid Login",
         "description": "User enters valid creds, receives JWT",
-        "type": "unit|integration|e2e|reliability|monitoring",
+        "type": "unit|integration|e2e|reliability|monitoring|uat",
         "acceptance_criteria": "HTTP 200, Token in LocalStorage"
       }
     ]
@@ -312,6 +330,16 @@ Primary control file: TASKS.json (execute in listed order)
 ## Pre-Execution Checklist
 - [ ] All JSON files validated
 - [ ] Git commit: "Spec locked v1.0"
+
+## Post-Implementation Checklist (MANDATORY before declaring DONE)
+- [ ] All unit tests pass (`pytest` or equivalent)
+- [ ] All integration tests pass
+- [ ] **UAT-001**: All UI sections mentioned in spec are visible and functional
+- [ ] **UAT-002**: All links are clickable and lead to valid destinations
+- [ ] **UAT-003**: No technical errors (stack traces, validation errors) visible to user
+- [ ] **UAT-004**: Search/filter inputs produce expected filtered results
+- [ ] **UAT-005**: Data displayed matches what was saved/scraped
+- [ ] **UAT-006**: Browser demo recorded showing each feature working
 ```
 
 ---
