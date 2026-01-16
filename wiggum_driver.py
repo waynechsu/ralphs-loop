@@ -90,8 +90,8 @@ def main():
             ws_url = cdp.connect()
             if not ws_url:
                 logger.error("[ERROR] ❌ Cannot connect to IDE. Is it running with --remote-debugging-port=9000?")
-                logger.error("[ERROR] Retrying in 10 seconds...")
-                time.sleep(10)
+                # Retry handled internally by CDPClient, if it fails here, it's fatal for this task iteration
+                time.sleep(5)
                 continue
             
             logger.info(f"[CDP] Connected to IDE")

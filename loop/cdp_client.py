@@ -30,23 +30,34 @@ class CDPClient:
         self.ws_url: Optional[str] = None
         self._ws = None
     
-    def connect(self) -> Optional[str]:
+    def connect(self, max_retries: int = 3, retry_delay: int = 2) -> Optional[str]:
         """
-        Connect to the IDE via CDP.
+        Connect to the IDE via CDP with retries.
         
+        Args:
+            max_retries: Number of connection attempts
+            retry_delay: Seconds between attempts
+            
         Returns:
             WebSocket debugger URL if successful, None otherwise
         """
-        pages = self._get_json(f"http://localhost:{self.port}/json")
-        if not pages:
-            return None
-        
-        target_page = self._find_chat_page(pages)
-        if not target_page:
-            return None
-        
-        self.ws_url = target_page.get("webSocketDebuggerUrl")
-        return self.ws_url
+        for attempt in range(max_retries):
+            try:
+                pages = self._get_json(f"http://localhost:{self.port}/json")
+                if pages:
+                    target_page = self._find_chat_page(pages)
+                    if target_page:
+                        self.ws_url = target_page.get("webSocketDebuggerUrl")
+                        print(f"[CDP] ✅ Connected to IDE on attempt {attempt + 1}")
+                        return self.ws_url
+            except Exception as e:
+                print(f"[CDP] ⚠️ Connection attempt {attempt + 1}/{max_retries} failed: {e}")
+            
+            if attempt < max_retries - 1:
+                time.sleep(retry_delay)
+                
+        print(f"[CDP] ❌ Failed to connect after {max_retries} attempts")
+        return None
     
     def send_command(self, method: str, params: Optional[dict] = None) -> Optional[dict]:
         """
