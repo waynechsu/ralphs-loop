@@ -89,7 +89,8 @@ class TestE2EFlow(unittest.TestCase):
         ws_url = client.connect()
         
         self.assertIsNone(ws_url)
-        self.assertEqual(mock_urlopen.call_count, 1)
+        # Default max_retries is 3, so we expect 3 attempts
+        self.assertEqual(mock_urlopen.call_count, 3)
 
     @patch('loop.progress_monitor.time.sleep')
     def test_progress_monitoring(self, mock_sleep):
