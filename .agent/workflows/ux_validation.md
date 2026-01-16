@@ -2,11 +2,9 @@
 description: Run the UX Validation agent to verify UI implementation against specs
 ---
 
-# UX Validation Agent (v1.1)
+# UX Validation Agent (v1.2)
 
-**Role:** You are the UX Validation Engineer. Your mission is to **verify** that implemented UI matches `UI_SPEC.json` and adheres to standards.
-
-**Constraint:** You do NOT design or modify specs. You **audit and report**.
+**Role:** Verify implemented UI matches `UI_SPEC.json`. Audit and report only.
 
 ---
 
@@ -15,8 +13,11 @@ description: Run the UX Validation agent to verify UI implementation against spe
 ```json
 {
   "pages_to_validate": ["PAGE-001"],
-  "skip_visual_regression": false,
-  "baseline_version": "v3.0"
+  "thresholds": {
+    "visual_diff_percent": 5,
+    "max_load_time_ms": 2000,
+    "min_contrast_ratio": 4.5
+  }
 }
 ```
 
@@ -24,69 +25,44 @@ description: Run the UX Validation agent to verify UI implementation against spe
 
 ## Phase 0: Input Validation
 
-- [ ] `UI_SPEC.json` exists and parses.
-- [ ] Presets are defined.
-- [ ] Features exist in CONTEXT.json.
-
-**On failure:** Output `DIAGNOSTICS.md` and HALT.
+Verify `UI_SPEC.json`, presets, features exist. On failure → `DIAGNOSTICS.md` + HALT.
 
 ---
 
 ## Phase 1: Spec Ingestion
 
-Load `UI_SPEC.json`, `BRAND_BOOK.md`, `design_tokens.json`.
+Load specs, `validation_hooks.test_data_source` if defined.
 
 ---
 
 ## Phase 2: Automated Audits
 
-### Accessibility
-- Contrast, Focus, Keyboard, ARIA, Touch Targets.
+| Audit | Primary Tool | Python Fallback |
+|-------|--------------|-----------------|
+| Accessibility | axe-core | BeautifulSoup |
+| Visual Regression | Playwright | PIL/Pillow |
+| Performance | Lighthouse | requests + timing |
 
-### Visual Regression
-- Screenshot comparison against baseline.
-- Threshold: >5% diff = FAIL.
-
-### State Coverage
-- Loading, Empty, Error states verified.
-
-### Responsive
-- Mobile (375px), Desktop (1280px).
-
-### Analytics Verification
-- `track_events` fire on actions.
+Includes: Contrast, Focus, ARIA, States, Responsive, Analytics, **Performance (NEW)**.
 
 ---
 
-## Phase 3: Component Verification
+## Phase 3–4: Components & Traceability
 
-- Data binding, Variants, Interactions.
-
----
-
-## Phase 4: Feature Traceability
-
-Cross-reference CONTEXT.json features with UI_SPEC.json coverage.
+Data binding, variants, interactions. Feature coverage vs CONTEXT.json.
 
 ---
 
-## Phase 5: Report Generation
+## Phase 5: Reports
 
-### Outputs:
+### Executive Summary (NEW)
+Quick overview: pages validated, critical/warning counts, estimated fix time.
 
-| Artifact | Required | Description |
-|----------|----------|-------------|
-| `UX_VALIDATION_REPORT.md` | Yes | Full audit with severity |
-| `REMEDIATION_PLAN.md` | If failures | Prioritized fixes |
-| `DIAGNOSTICS.md` | On input error | Pre-flight failures |
+### Outputs
+| Artifact | Required |
+|----------|----------|
+| `UX_VALIDATION_REPORT.md` | Yes |
+| `REMEDIATION_PLAN.md` | If issues |
+| `DIAGNOSTICS.md` | On error |
 
-### Severity Levels
-- 🔴 **Critical**: Blocks deployment
-- 🟡 **Warning**: Fix soon
-- 🟢 **Info**: Suggestions
-
----
-
-## Failure Handling
-
-Critical failures (🔴) are **HARD BLOCKERS**. Block deployment and notify frontend agent.
+### Severity: 🔴 Critical (blocks) | 🟡 Warning (fix soon) | 🟢 Info
